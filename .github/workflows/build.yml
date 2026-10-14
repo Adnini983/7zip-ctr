@@ -8,49 +8,49 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Show MSVC toolchain
+
+      - name: Setup MSVC
         shell: cmd
         run: |
-          where cl || echo "cl not in PATH"
-          if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" echo found community
-          if exist "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" echo found buildtools
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
+          -latest ^
+          -products * ^
+          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+          -property installationPath > vs_path.txt
 
-      - name: Build all 7-Zip CTR targets
+          set /p VS_PATH=<vs_path.txt
+
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
+
+          cl
+
+
+      - name: Build 7-Zip CTR
         shell: cmd
         run: |
-          set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-          if not exist "%VCVARS%" set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-          call "%VCVARS%"
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
+          -latest ^
+          -products * ^
+          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+          -property installationPath > vs_path.txt
+
+          set /p VS_PATH=<vs_path.txt
+
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
+
+
           mkdir out
+
+
           cd CPP\7zip\Bundles\Format7zF
           nmake /F makefile
-          if exist x64\7z.dll copy /Y x64\7z.dll ..\..\..\..\out\7z.dll
-          cd ..\Fm
-          nmake /F makefile
-          if exist x64\7zFM.exe copy /Y x64\7zFM.exe ..\..\..\..\..\out\7zFM.exe
-          cd ..\Alone2
-          nmake /F makefile
-          if exist x64\7zz.exe copy /Y x64\7zz.exe ..\..\..\..\..\out\7zz.exe
-          cd ..\..\..\UI\Console
-          nmake /F makefile
-          if exist x64\7z.exe copy /Y x64\7z.exe ..\..\..\..\out\7z.exe
-          cd ..\GUI
-          nmake /F makefile
-          if exist x64\7zG.exe copy /Y x64\7zG.exe ..\..\..\..\out\7zG.exe
-          cd ..\Explorer
-          nmake /F makefile
-          if exist x64\7-zip.dll copy /Y x64\7-zip.dll ..\..\..\..\out\7-zip.dll
-          cd ..\..\..\..\C\Util\7zipInstall
-          nmake /F makefile Z7_64BIT_INSTALLER=1
-          if exist x64\7zipInstall.exe copy /Y x64\7zipInstall.exe ..\..\..\..\..\out\7zipInstall.exe
-          cd ..\7zipUninstall
-          nmake /F makefile Z7_64BIT_INSTALLER=1
-          if exist x64\7zipUninstall.exe copy /Y x64\7zipUninstall.exe ..\..\..\..\..\out\Uninstall.exe
-          dir ..\..\..\..\out
+
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
