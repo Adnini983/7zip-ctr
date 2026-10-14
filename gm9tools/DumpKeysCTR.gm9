@@ -1,0 +1,260 @@
+# DumpKeysCTR.gm9 -- 7-Zip CTR 密钥导出脚本（在实机 GodMode9 中运行）
+#
+# 作用：把 GodMode9 加载的 aeskeydb.bin（自动挂载为 [K:] 盘）里的密钥导出到
+#       SD 卡，并按【可上传 GitHub】/【不可上传】分成两个目录。
+#
+#   0:/gm9out/7zctr-keys/pub/   <- 可公开上传（common keydata / 已泄露固定 key）
+#   0:/gm9out/7zctr-keys/priv/  <- 机器特有（OTP / movable.sed 派生，勿上传）
+#
+# 前置条件：
+#   1. 把 aeskeydb.bin 放到 SD 卡根目录 (sd:/aeskeydb.bin)
+#      - 可用 GodMode9 仓库自带的 data/aeskeydb.bin（只含可公开密钥）
+#      - 若你有从别处得到的更全密钥库，也可用
+#   2. GodMode9 会自动把 aeskeydb.bin 挂载为 [K:] AESKEYDB 盘
+#   3. 进入 GodMode9 -> Scripts -> 选择本脚本运行
+#
+# 注意：GM9 脚本无法直接从 AES 引擎读取 keyslot 寄存器。本脚本导出的是
+#       aeskeydb.bin 中已有的密钥。若需要把"机器实际加载的全部 keyslot"
+#       完整导出，请另行运行 GodMode9 的 Scripts -> DumpKeys，
+#       它生成 aes_keys.txt + seeddb.bin，再用电脑上的
+#       aeskeys2ctr.py 转换成 3dskey 目录。
+
+set PREVIEW_MODE "quick"
+set ERRORMSG "密钥导出失败"
+set SUCCESSMSG "密钥导出完成"
+
+# ---- 输出目录 ----
+set OUT "0:/gm9out/7zctr-keys"
+mkdir -w $[OUT]
+mkdir -w $[OUT]/pub
+mkdir -w $[OUT]/priv
+
+# ---- 检查 K: 盘（aeskeydb）----
+if not exist K:/
+ echo "错误：[K:] 盘不可用"
+ echo "请把 aeskeydb.bin 放到 SD 根目录，重启 GodMode9"
+ ask "继续运行？"
+end
+
+# ============================================================
+# 1. 可上传 GitHub（公共常量 / 已泄露的固定密钥）
+#     slot0x03, 0x18, 0x1B, 0x25, 0x2C..0x3F 的 KeyX/KeyY/KeyN
+# ============================================================
+for K:/ slot0x03Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x18Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x1BKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x25Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+
+# 0x2C .. 0x3F（common keydata，所有机器相同）
+for K:/ slot0x2CKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x2DKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x2EKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x2FKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x30Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x31Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x32Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x33Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x34Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x35Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x36Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x37Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x38Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x39Key*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3AKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3BKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3CKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3DKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3EKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+for K:/ slot0x3FKey*.bin
+ cp -w $[FORPATH] $[OUT]/pub/
+next
+
+# ============================================================
+# 2. 不可上传 GitHub（console-unique：从 OTP / movable.sed 派生，
+#    每台机器不同；3dbrew 记为 "Console-unique keydata"）
+#     slot0x04..0x2B 的 KeyX（以及本列表中未列入 pub 的其他 key）
+# ============================================================
+for K:/ slot0x04Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x05Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x06Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x07Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x08Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x09Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0AKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0BKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0CKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0DKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0EKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x0FKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x10Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x11Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x12Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x13Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x14Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x15Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x16Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x17Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x19Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x1AKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x1CKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x1DKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x1EKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x1FKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x20Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x21Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x22Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x23Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x24Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x26Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x27Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x28Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x29Key*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x2AKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+for K:/ slot0x2BKey*.bin
+ cp -w $[FORPATH] $[OUT]/priv/
+next
+
+# ============================================================
+# 3. 机器特有 / 派生文件（一律不可上传）
+# ============================================================
+# movable.sed —— console-unique 核心（OTP 加密，用于派生 keyX / SD 加密）
+if exist S:/private/movable.sed
+ cp -w S:/private/movable.sed $[OUT]/priv/
+end
+if not exist $[OUT]/priv/movable.sed
+ if exist 1:/private/movable.sed
+  cp -w 1:/private/movable.sed $[OUT]/priv/
+ end
+end
+# seeddb.bin —— seed 加密 RomFS 所需（含游戏特定 seed；是否上传自行判断）
+if exist S:/ro/sys/seeddb.bin
+ cp -w S:/ro/sys/seeddb.bin $[OUT]/priv/
+end
+
+echo "========================"
+echo "导出完成：$[OUT]"
+echo "  pub/  = 可上传 GitHub"
+echo "  priv/ = 机器特有，勿上传"
+echo "提示：若需完整 keyslot，请运行"
+echo "      GodMode9 Scripts -> DumpKeys"
+echo "      生成 aes_keys.txt + seeddb.bin"
+echo "      再用电脑 aeskeys2ctr.py 转成 3dskey"
+ask "按 A 返回"

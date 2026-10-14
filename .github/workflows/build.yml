@@ -1,0 +1,59 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show MSVC toolchain
+        shell: cmd
+        run: |
+          where cl || echo "cl not in PATH"
+          if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" echo found community
+          if exist "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" echo found buildtools
+
+      - name: Build all 7-Zip CTR targets
+        shell: cmd
+        run: |
+          set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+          if not exist "%VCVARS%" set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+          call "%VCVARS%"
+          mkdir out
+          cd CPP\7zip\Bundles\Format7zF
+          nmake /F makefile
+          if exist x64\7z.dll copy /Y x64\7z.dll ..\..\..\..\out\7z.dll
+          cd ..\Fm
+          nmake /F makefile
+          if exist x64\7zFM.exe copy /Y x64\7zFM.exe ..\..\..\..\..\out\7zFM.exe
+          cd ..\Alone2
+          nmake /F makefile
+          if exist x64\7zz.exe copy /Y x64\7zz.exe ..\..\..\..\..\out\7zz.exe
+          cd ..\..\..\UI\Console
+          nmake /F makefile
+          if exist x64\7z.exe copy /Y x64\7z.exe ..\..\..\..\out\7z.exe
+          cd ..\GUI
+          nmake /F makefile
+          if exist x64\7zG.exe copy /Y x64\7zG.exe ..\..\..\..\out\7zG.exe
+          cd ..\Explorer
+          nmake /F makefile
+          if exist x64\7-zip.dll copy /Y x64\7-zip.dll ..\..\..\..\out\7-zip.dll
+          cd ..\..\..\..\C\Util\7zipInstall
+          nmake /F makefile Z7_64BIT_INSTALLER=1
+          if exist x64\7zipInstall.exe copy /Y x64\7zipInstall.exe ..\..\..\..\..\out\7zipInstall.exe
+          cd ..\7zipUninstall
+          nmake /F makefile Z7_64BIT_INSTALLER=1
+          if exist x64\7zipUninstall.exe copy /Y x64\7zipUninstall.exe ..\..\..\..\..\out\Uninstall.exe
+          dir ..\..\..\..\out
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: 7zip-ctr-build
+          path: out/
