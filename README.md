@@ -105,22 +105,53 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 
 ## 许可
 
-- **本项目主体**（7-Zip fork）：遵循 **GNU LGPL-2.1**（含 unRAR license
-  restriction，见 `DOC/License.txt`）。7-Zip 源码版权为 Igor Pavlov 所有。
-- **`N3dsHandler.cpp`**：本项目新增文件，按 **LGPL-2.1** 授权（沿用 7-Zip 主体许可）。
-- **图标资源**：基于 [free-file-icons](https://github.com/redbooth/free-file-icons)
-  的 MIT 许可模板重新绘制。
-- **GM9 脚本**：`gm9tools\DumpKeysCTR.gm9` 按 GodMode9 脚本语法编写，
-  运行时在用户自己的实机执行。
+本项目基于以下开源项目：
 
-> 本仓库是在原 7-Zip 基础上修改的分支。使用本软件即表示接受相应许可条款。
+### 7-Zip
+
+- 原始项目：
+  https://github.com/ip7z/7zip
+- 作者：
+  Igor Pavlov
+- 许可证：
+  GNU LGPL-2.1（附带 unRAR license restriction）
+
+本项目主体代码继承 7-Zip 的许可证要求。
+
+### 本项目新增代码
+
+`CPP/7zip/Archive/N3dsHandler.cpp` 等由本项目新增或修改的代码：
+
+- 许可证：GNU LGPL-2.1
+- 版权所有：
+  7-Zip 原作者 Igor Pavlov 与本项目贡献者
+
+### 其他资源
+
+- 图标资源：
+  基于 `redbooth/free-file-icons` 的 MIT 许可资源修改。
+- 其他第三方参考项目：
+  请见“参考仓库与资源”章节。
+
+完整许可证文本见仓库根目录 `LICENSE.md` 以及 7-Zip 原始源码中的 `DOC/License.txt`。
+
+## 原始项目来源
+
+本项目基于官方 7-Zip 源码修改而来。
+
+- 原始项目：7-Zip
+- 原作者：Igor Pavlov
+- 官方网站：https://www.7-zip.org/
+- 原始 GitHub 仓库：https://github.com/ip7z/7zip
+
+本仓库并非 7-Zip 官方项目，而是基于 7-Zip 源码进行二次开发的个人修改版本。
 
 ---
 
 ## 致谢
 
-- **本仓库由豆包（Doubao）编写**：代码、文档、图标、构建脚本均为豆包生成与组织。
-- **用户提供提示词与测试环境**：功能需求、测试样本、实机密钥提取由用户提供与验证。
+- **代码与文档生成辅助**：部分代码、文档、图标设计和构建脚本由 AI 工具（豆包 / Doubao）辅助生成。
+- **用户贡献**：功能需求、测试环境、实机验证以及项目方向由用户提供。
 - 感谢 [Igor Pavlov](https://www.7-zip.org/) 与 7-Zip 社区、[GodMode9 项目](https://github.com/d0k3/GodMode9)、
   [ctrtool](https://github.com/3DSGuy/Project_CTR)、[3DS-rom-tools](https://github.com/ihaveamac/3DS-rom-tools)、
   [free-file-icons](https://github.com/redbooth/free-file-icons) 等开源项目。
