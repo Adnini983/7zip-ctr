@@ -48,6 +48,7 @@ struct CItem
   Byte InnerCtr[16];  // GetNcchCtr base (partitionId reversed + section byte)
   UInt64 InnerBase;       // absolute offset of the NCCH region start (ExeFS/RomFS base)
   UInt64 InnerOff;        // byte offset from region start where the region's counter starts
+  bool Virtual;           // metadata-only placeholder (CDN TMD content listing); no embedded bytes
   UInt64 GetSize() const { return Size; }
 };
 
@@ -57,10 +58,18 @@ struct CItem
 // (Named CN3dsInfo to avoid clashing with 7-Zip's own CArcInfo used by RegisterArc.)
 struct CN3dsInfo
 {
-  int Container;                 // 0 = none, 1 = CIA, 2 = NCSD, 3 = NCCH
+  int Container;                 // 0=none,1=CIA,2=NCSD,3=NCCH,4=CDN TMD,5=plain RomFS,6=plain ExeFS
   bool IsCia() const { return Container == 1; }
   bool IsNcsd() const { return Container == 2; }
   bool IsNcch() const { return Container == 3; }
+  bool IsTmd() const { return Container == 4; }
+  bool IsRomfs() const { return Container == 5; }
+  bool IsExefs() const { return Container == 6; }
+
+  // ---- CDN TMD (title metadata) ----
+  char   Issuer[0x41];           // signing issuer string, e.g. Root-CA00000003-CP0000000b
+  UInt32 TmdTitleType;            // header+0x54
+  UInt16 TmdGroupId;             // header+0x58
 
   // ---- CIA header (offset 0x00, 0x20 bytes) ----
   UInt32 CiaType;                // low16
@@ -645,6 +654,7 @@ Z7_CLASS_IMP_CHandler_IInArchive_0
       memcpy(it.InnerKey, innerKey, 16);
     it.InnerBase = innerBase;
     it.InnerOff = innerOff;
+    it.Virtual = false;
     if (innerCtr)
       memcpy(it.InnerCtr, innerCtr, 16);
     else
@@ -722,6 +732,8 @@ Z7_CLASS_IMP_CHandler_IInArchive_0
   HRESULT ParseNCCH(UInt64 base, const UString &prefix);
   HRESULT ParseCia(UInt64 base);
   HRESULT ParseNcsd(UInt64 base);
+  HRESULT ParseCntStandalone(UInt64 base);
+  HRESULT ParseTmd(UInt64 base);
   HRESULT Open2(IInStream *);
 
 public:
@@ -1036,7 +1048,9 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
           continue;
         UInt64 cOff = _cntOff + (UInt64)eOff + 0xC00;
         UInt64 cSize = (UInt64)eEnd - eOff;
-        UString nm = _cntDir + HexUInt64Padded(_cupTitles[i]) + UString(L".cia");
+        // Per-title CIAs are collected in a dedicated "Contents/" subfolder of
+        // the cnt's directory, instead of being flattened next to Contents.cnt.
+        UString nm = _cntDir + UString(L"Contents/") + HexUInt64Padded(_cupTitles[i]) + UString(L".cia");
         AddItem(nm, cOff, cSize, false);
       }
     }
@@ -1574,6 +1588,155 @@ HRESULT CHandler::ParseNcsd(UInt64 base)
   return S_OK;
 }
 
+// Standalone Contents.cnt (SNAKE update container): "CONT" header followed by
+// 256 (offset, offset_end) u32 pairs at 0xC00. Each valid entry points to a
+// plaintext CIA payload; list them under a dedicated Contents/ subfolder.
+// (The sibling CupList that carries title ids is unavailable to a standalone
+// stream, so entries are numbered; the downstream CIA handler still decrypts.)
+HRESULT CHandler::ParseCntStandalone(UInt64 base)
+{
+  Byte hb[0x1400];
+  RINOK(ReadAt(base, hb, sizeof(hb)));
+  if (memcmp(hb, "CONT", 4) != 0)
+    return S_FALSE;
+
+  _info.Clear();
+
+  unsigned seq = 0;
+  for (unsigned i = 0; i < 256; i++)
+  {
+    UInt32 eOff = GetUi32(hb + 0xC00 + i * 8);
+    UInt32 eEnd = GetUi32(hb + 0xC00 + i * 8 + 4);
+    if (eOff == 0 || eEnd <= eOff || eEnd == 0xFFFFFFFF)
+      continue;
+    UInt64 cOff = base + 0xC00 + (UInt64)eOff;
+    UInt64 cSize = (UInt64)eEnd - eOff;
+    // verify a plaintext CIA header (size_header == 0x2020); skip encrypted or
+    // padding entries whose first bytes are not the CIA magic
+    Byte ch[4];
+    if (ReadAt(cOff, ch, 4) != S_OK || GetUi32(ch) != 0x2020)
+      continue;
+    // Locate the ticket segment from the CIA header, then read the plaintext
+    // title id at ticket+0x1DC (1:1 with the CupList index) so items can be
+    // named <titleid>.cia without reading the sibling CupList file.
+    Byte ciaHdr[0x20];
+    UInt64 tid = 0;
+    if (ReadAt(cOff, ciaHdr, 0x20) == S_OK)
+    {
+      UInt32 hdrSize  = GetUi32(ciaHdr + 0x00);
+      UInt32 certSize = GetUi32(ciaHdr + 0x08);
+      UInt64 offCert   = ((UInt64)hdrSize  + 63) & ~(UInt64)63;
+      UInt64 offTik   = offCert + (((UInt64)certSize + 63) & ~(UInt64)63);
+      Byte tidRaw[8];
+      if (ReadAt(cOff + offTik + 0x1DC, tidRaw, 8) == S_OK)
+        tid = GetBe64(tidRaw);
+    }
+    UString nm;
+    if (tid != 0)
+      nm = UString(L"Contents/") + HexUInt64Padded(tid) + UString(L".cia");
+    else
+    {
+      char name[48];
+      snprintf(name, sizeof(name), "Contents/entry_%03u.cia", seq++);
+      nm = UString(name);
+    }
+    AddItem(nm, cOff, cSize, false);
+  }
+  return S_OK;
+}
+
+// ----------------------------------------------------------------
+// CDN TMD (title metadata, NUS): a standalone tmd.<n> file paired with a
+// folder of index-named encrypted contents (00000000, 00000001, ...).
+//
+// A CDN content is AES-CBC encrypted with the per-title TitleKey, which can
+// only be recovered from a ticket (.tik/.cetk) via the common key. This pack
+// carries a TMD only (no ticket), so the ciphertext contents cannot be
+// decrypted here; this parser lists the TMD's content records as metadata-only
+// placeholders and exposes title info in the archive properties.
+//
+// FUTVE ticket hook (not wired yet, single-stream handler cannot reach the
+// sibling folder): when a <titleid>.tik/.cetk sits next to the TMD, decrypt the
+// TitleKey with the common key, AES-CBC-decrypt each content (IV = big-endian
+// titleId / content-id padded), then hand the plaintext NCCH to ParseNCCH.
+//
+// TMD layout (all big-endian), signature data size Y depends on sig type@0:
+//   0x010003 RSA4096 SHA256 -> Y = 4 + 0x200 + 0x3C = 0x240
+//   0x010004 RSA2048 SHA256 -> Y = 4 + 0x100 + 0x3C = 0x140
+//   0x010005 ECDSA  SHA256  -> Y = 4 + 0x3C  + 0x40 = 0x80
+// Header @ Y: issuer[0x40], TitleId@+0x4C(u64), TitleType@+0x54(u32),
+//   GroupId@+0x58(u16), TitleVersion@+0x9C(u16), ContentCount@+0x9E(u16).
+// Chunk records @ Y+0x9C4, each 0x30: contentId(u32) index(u16) type(u16)
+//   size(u64) SHA256(0x20).
+// ----------------------------------------------------------------
+static UInt32 TmdSigY(UInt32 sigType)
+{
+  switch (sigType)
+  {
+    case 0x010003: return 0x240;
+    case 0x010005: return 0x80;
+    default:       return 0x140;   // 0x010004 RSA2048 SHA256
+  }
+}
+
+HRESULT CHandler::ParseTmd(UInt64 base)
+{
+  Byte hdr[0x200];
+  RINOK(ReadAt(base, hdr, sizeof(hdr)));
+
+  UInt32 sigType = GetBe32(hdr + 0x00);
+  if (sigType != 0x010003 && sigType != 0x010004 && sigType != 0x010005)
+    return S_FALSE;
+  UInt32 Y = TmdSigY(sigType);
+  if (Y + 0xA0 > sizeof(hdr))
+    return S_FALSE;
+  // issuer must start with "Root-"
+  if (memcmp(hdr + Y, "Root-", 5) != 0)
+    return S_FALSE;
+
+  _info.Clear();
+  _info.Container = 4;
+  memcpy(_info.Issuer, hdr + Y, 0x40);
+  _info.Issuer[0x40] = 0;
+  // strip trailing NULs already handled by fixed buffer; trim at first NUL
+  for (int i = 0; i < 0x40; i++)
+    if (_info.Issuer[i] == 0) { _info.Issuer[i] = 0; break; }
+
+  _info.TitleId        = GetBe64(hdr + Y + 0x4C);
+  _info.TmdTitleType   = GetBe32(hdr + Y + 0x54);
+  _info.TmdGroupId     = GetBe16(hdr + Y + 0x58);
+  _info.TmdTitleVersion= GetBe16(hdr + Y + 0x9C);
+  _info.ContentCount   = GetBe16(hdr + Y + 0x9E);
+
+  // Note: no manual "Contents/" directory entry here; the GUI builds the
+  // folder tree automatically from the leaf paths below (same as ExeFS/RomFS).
+
+  UInt64 recBase = base + Y + 0x9C4;
+  for (UInt16 c = 0; c < _info.ContentCount; c++)
+  {
+    Byte rec[0x30];
+    if (ReadAt(recBase + (UInt64)c * 0x30, rec, 0x30) != S_OK)
+      break;
+    UInt32 cid   = GetBe32(rec + 0x00);
+    UInt16 idx   = GetBe16(rec + 0x04);
+    UInt16 ctype = GetBe16(rec + 0x06);
+    UInt64 csize = GetBe64(rec + 0x08);
+
+    // Metadata-only placeholder: use a non-registered extension (.content) so
+    // the GUI does not try to re-open it as a 3DS container. The on-disk CDN
+    // content cannot be decrypted without a ticket, so there are no embedded
+    // bytes here.
+    char name[64];
+    snprintf(name, sizeof(name), "Contents/%08x.content", (unsigned)idx);
+    AddItem(UString(name), recBase + (UInt64)c * 0x30, csize, false);
+    CItem &it = _items.Back();
+    it.Virtual = true;
+    // type flags: 1=Encrypted, 0x4000=Optional, 0x8000=Shared
+    (void)cid; (void)ctype;
+  }
+  return S_OK;
+}
+
 // ----------------------------------------------------------------
 HRESULT CHandler::Open2(IInStream *)
 {
@@ -1585,6 +1748,10 @@ HRESULT CHandler::Open2(IInStream *)
   if (res != S_OK || res == S_FALSE)
     return S_FALSE;
 
+  // Standalone Contents.cnt (SNAKE update container): magic "CONT" at offset 0
+  if (memcmp(hdr, "CONT", 4) == 0)
+    return ParseCntStandalone(0);
+
   // CIA: header size field == 0x2020
   if (GetUi32(hdr) == 0x2020)
     return ParseCia(0);
@@ -1594,6 +1761,34 @@ HRESULT CHandler::Open2(IInStream *)
     return ParseNCCH(0, UString());
   if (memcmp(hdr + 0x100, "NCSD", 4) == 0)
     return ParseNcsd(0);
+
+  // CDN TMD (standalone tmd.<n>): RSA sig type @0, "Root-" issuer at Y
+  {
+    UInt32 st = GetBe32(hdr);
+    if (st == 0x010003 || st == 0x010004 || st == 0x010005)
+    {
+      UInt32 Y = TmdSigY(st);
+      if (Y + 0x40 <= 0x200 && memcmp(hdr + Y, "Root-", 5) == 0)
+        return ParseTmd(0);
+    }
+  }
+
+  // Standalone plaintext RomFS (romfs.bin / .romfs): IVFC magic @0.
+  // No outer NCCH layer here, so parse as plaintext (inner=false, no keys).
+  if (memcmp(hdr, "IVFC", 4) == 0)
+  {
+    _info.Clear();
+    _info.Container = 5;
+    return ParseRomFS(0, UString(), NULL, NULL, false);
+  }
+
+  // Standalone plaintext ExeFS (exefs.bin): no magic; validate the 10 entries.
+  if (ValidExeFsHdr(hdr))
+  {
+    _info.Clear();
+    _info.Container = 6;
+    return ParseExeFS(0, UString(), NULL, NULL, NULL, false);
+  }
 
   return S_FALSE;
 }
@@ -1662,6 +1857,14 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
     case kpidExtension: prop = "3ds"; break;
     case kpidComment:
       {
+        if (_info.IsTmd())
+        {
+          UString s = UString(L"TMD issuer: ");
+          s += ReadAscii((const Byte *)_info.Issuer, 0x40);
+          s += UString(L"; contents are TitleKey-AES-CBC encrypted, a ticket (.tik/.cetk) is required to decrypt");
+          prop = s;
+          break;
+        }
         C3dsKeys &k = C3dsKeys::Instance();
         k.EnsureLoaded();
         if (k.Retail() != 0 || k.Dev() != 0)
@@ -1680,6 +1883,9 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
       if (_info.IsCia()) prop = "CIA";
       else if (_info.IsNcsd()) prop = "NCSD";
       else if (_info.IsNcch()) prop = "NCCH";
+      else if (_info.IsTmd()) prop = "TMD (CDN)";
+      else if (_info.IsRomfs()) prop = "RomFS (plaintext)";
+      else if (_info.IsExefs()) prop = "ExeFS (plaintext)";
       break;
     case kpidN3dsMediaId:
       if (_info.IsNcsd()) prop = HexUInt64(_info.MediaId);
@@ -1687,6 +1893,7 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
     case kpidN3dsTitleId:
       if (_info.IsCia()) prop = HexUInt64(_info.TitleId);
       else if (_info.IsNcch()) prop = HexUInt64(_info.NcchTitleId);
+      else if (_info.IsTmd()) prop = HexUInt64(_info.TitleId);
       break;
     case kpidN3dsProgramId:
       if (_info.IsNcch()) prop = HexUInt64(_info.ProgramId);
@@ -1694,7 +1901,7 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
     case kpidN3dsTitleVer:
       {
         UInt16 v = 0;
-        if (_info.IsCia()) v = _info.TmdTitleVersion;
+        if (_info.IsCia() || _info.IsTmd()) v = _info.TmdTitleVersion;
         else if (_info.IsNcch()) v = _info.NcchVersion;
         if (v != 0) { UString s = UString(L"v"); s += NumToUString(v); prop = s; }
         break;
@@ -1713,7 +1920,7 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
       if (_info.IsCia()) { UString s = UString(L"0x"); s += HexUInt32(_info.CommonKeyIdx); prop = s; }
       break;
     case kpidN3dsContentCount:
-      if (_info.IsCia()) prop = (UInt32)_info.ContentCount;
+      if (_info.IsCia() || _info.IsTmd()) prop = (UInt32)_info.ContentCount;
       break;
     case kpidN3dsPartitions:
       if (_info.IsNcsd()) prop = (UInt32)_info.NumPartitions;
@@ -1790,7 +1997,7 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
     if (index >= _items.Size())
       continue;
     const CItem &item = _items[index];
-    if (!item.IsDir)
+    if (!item.IsDir && !item.Virtual)
       totalSize += item.Size;
   }
 
@@ -1844,6 +2051,16 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
       continue;
     }
     const CItem &item = _items[index];
+
+    // Metadata-only CDN TMD content placeholder: no embedded bytes, nothing to
+    // write out (the real ciphertext lives in the sibling index-named file).
+    if (item.Virtual)
+    {
+      RINOK(extractCallback->PrepareOperation(NArchive::NExtract::NOperationResult::kOK));
+      RINOK(extractCallback->SetCompleted(&curPos));
+      RINOK(extractCallback->SetOperationResult(NArchive::NExtract::NOperationResult::kOK));
+      continue;
+    }
 
     Int32 opRes = NArchive::NExtract::NOperationResult::kOK;
     CMyComPtr<ISequentialOutStream> outStream;
@@ -1969,6 +2186,9 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
 // ----------------------------------------------------------------
 API_FUNC_static_IsArc N3ds_IsArc(const Byte *p, size_t size)
 {
+  // Standalone Contents.cnt: "CONT" magic at offset 0 (needs only 4 bytes)
+  if (size >= 4 && memcmp(p, "CONT", 4) == 0)
+    return k_IsArc_Res_YES;
   if (size < 0x104)
     return k_IsArc_Res_NEED_MORE;
   if (memcmp(p + 0x100, "NCCH", 4) == 0)
@@ -1979,10 +2199,24 @@ API_FUNC_static_IsArc N3ds_IsArc(const Byte *p, size_t size)
   if (GetUi32(p + 0) == 0x2020 && (GetUi32(p + 4) & 0xFFFF) <= 1 &&
       GetUi32(p + 0x10) < 0x1000 && GetUi32(p + 0x14) < 0x200000)
     return k_IsArc_Res_YES;
+  // CDN TMD: RSA sig type @0, "Root-" issuer at Y (0x140 for RSA2048 SHA256)
+  if (size >= 0x145)
+  {
+    UInt32 st = GetBe32(p);
+    if ((st == 0x010003 || st == 0x010004 || st == 0x010005) &&
+        memcmp(p + TmdSigY(st), "Root-", 5) == 0)
+      return k_IsArc_Res_YES;
+  }
+  // Standalone plaintext RomFS: IVFC magic @0 (needs only 4 bytes)
+  if (size >= 4 && memcmp(p, "IVFC", 4) == 0)
+    return k_IsArc_Res_YES;
+  // Standalone plaintext ExeFS: no magic; validate the 10 file entries (0x200 hdr)
+  if (size >= 0x200 && ValidExeFsHdr(p))
+    return k_IsArc_Res_YES;
   return k_IsArc_Res_NO;
 }
 }
 
-REGISTER_ARC_I_NO_SIG("3DS", "3ds cta cia cxi cfa ncch", NULL, 0xF6, 0, 0, N3ds_IsArc)
+REGISTER_ARC_I_NO_SIG("3DS", "3ds cci 3dz csu ncch cxi cfa app cia firm cnt bin romfs exefs tmd", NULL, 0xF6, 0, 0, N3ds_IsArc)
 
 }}

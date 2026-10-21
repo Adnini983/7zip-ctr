@@ -964,7 +964,7 @@ static void WriteShellEx(void)
       MyRegistry_SetDWORD(destKey, L"VersionMajor", MY_VER_MAJOR);
       MyRegistry_SetDWORD(destKey, L"VersionMinor", MY_VER_MINOR);
   
-      MyRegistry_SetString(destKey, L"Publisher", LLL(MY_AUTHOR_NAME));
+      MyRegistry_SetString(destKey, L"Publisher", L"Adnini983");
       
       // MyRegistry_SetString(destKey, L"HelpLink", L"http://www.7-zip.org/support.html");
       // MyRegistry_SetString(destKey, L"URLInfoAbout", L"http://www.7-zip.org/");

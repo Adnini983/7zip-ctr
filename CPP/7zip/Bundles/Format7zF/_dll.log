@@ -1,0 +1,352 @@
+
+Microsoft (R) ³ÌÐòÎ¬»¤ÊµÓÃ¹¤¾ß 14.44.35229.0 °æ
+°æÈ¨ËùÓÐ (C) Microsoft Corporation¡£  ±£ÁôËùÓÐÈ¨Àû¡£
+
+	if not exist "x64" mkdir "x64"
+	if not exist "x64/asm" mkdir "x64/asm"
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yc"StdAfx.h" -Fpx64/a.pch StdAfx.cpp
+StdAfx.cpp
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/AesOpt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/AesOpt.asm
+"++ VAES 256"
+"x86-64"
+"ABI : WINDOWS"
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/7zCrcOpt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/7zCrcOpt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/XzCrc64Opt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/XzCrc64Opt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/LzFindOpt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/LzFindOpt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/LzmaDecOpt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/LzmaDecOpt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/Sha1Opt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/Sha1Opt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/Sha256Opt.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/Sha256Opt.asm
+	ml64 -WX -c -Fox64/ ../../../../Asm/x86/Sort.asm
+Microsoft (R) Macro Assembler (x64) Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+ Assembling: ../../../../Asm/x86/Sort.asm
+	rc  -fox64\resource.res resource.rc
+Microsoft (R) Windows (R) Resource Compiler Version 10.0.10011.16384
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../../Common\CRC.cpp ../../../Common\CrcReg.cpp ../../../Common\DynLimBuf.cpp ../../../Common\IntToString.cpp ../../../Common\LzFindPrepare.cpp ../../../Common\Md5Reg.cpp ../../../Common\MyMap.cpp ../../../Common\MyString.cpp ../../../Common\MyVector.cpp ../../../Common\MyXml.cpp ../../../Common\NewHandler.cpp ../../../Common\Sha1Reg.cpp ../../../Common\Sha256Reg.cpp ../../../Common\Sha3Reg.cpp ../../../Common\Sha512Reg.cpp ../../../Common\Sha512Prepare.cpp ../../../Common\StringConvert.cpp ../../../Common\StringToInt.cpp ../../../Common\UTFConvert.cpp ../../../Common\Wildcard.cpp ../../../Common\Xxh64Reg.cpp ../../../Common\XzCrc64Init.cpp ../../../Common\XzCrc64Reg.cpp ../../../Common\Sha1Prepare.cpp ../../../Common\Sha256Prepare.cpp 
+CRC.cpp
+CrcReg.cpp
+DynLimBuf.cpp
+IntToString.cpp
+LzFindPrepare.cpp
+Md5Reg.cpp
+MyMap.cpp
+MyString.cpp
+MyVector.cpp
+MyXml.cpp
+NewHandler.cpp
+Sha1Reg.cpp
+Sha256Reg.cpp
+Sha3Reg.cpp
+Sha512Reg.cpp
+Sha512Prepare.cpp
+StringConvert.cpp
+StringToInt.cpp
+Wildcard.cpp
+UTFConvert.cpp
+Xxh64Reg.cpp
+XzCrc64Init.cpp
+XzCrc64Reg.cpp
+Sha1Prepare.cpp
+Sha256Prepare.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../../Windows\FileDir.cpp ../../../Windows\FileFind.cpp ../../../Windows\FileIO.cpp ../../../Windows\FileName.cpp ../../../Windows\PropVariant.cpp ../../../Windows\PropVariantConv.cpp ../../../Windows\PropVariantUtils.cpp ../../../Windows\Synchronization.cpp ../../../Windows\System.cpp ../../../Windows\TimeUtils.cpp 
+FileDir.cpp
+FileFind.cpp
+FileIO.cpp
+FileName.cpp
+PropVariant.cpp
+PropVariantConv.cpp
+PropVariantUtils.cpp
+Synchronization.cpp
+System.cpp
+TimeUtils.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Common\CreateCoder.cpp ../../Common\CWrappers.cpp ../../Common\InBuffer.cpp ../../Common\InOutTempBuffer.cpp ../../Common\FilterCoder.cpp ../../Common\LimitedStreams.cpp ../../Common\LockedStream.cpp ../../Common\MemBlocks.cpp ../../Common\MethodId.cpp ../../Common\MethodProps.cpp ../../Common\OffsetStream.cpp ../../Common\OutBuffer.cpp ../../Common\OutMemStream.cpp ../../Common\ProgressMt.cpp ../../Common\ProgressUtils.cpp ../../Common\PropId.cpp ../../Common\StreamBinder.cpp ../../Common\StreamObjects.cpp ../../Common\StreamUtils.cpp ../../Common\UniqBlocks.cpp ../../Common\VirtThread.cpp 
+CreateCoder.cpp
+CWrappers.cpp
+InBuffer.cpp
+InOutTempBuffer.cpp
+FilterCoder.cpp
+LimitedStreams.cpp
+LockedStream.cpp
+MemBlocks.cpp
+MethodId.cpp
+MethodProps.cpp
+OffsetStream.cpp
+OutBuffer.cpp
+OutMemStream.cpp
+ProgressMt.cpp
+ProgressUtils.cpp
+PropId.cpp
+StreamBinder.cpp
+StreamObjects.cpp
+StreamUtils.cpp
+UniqBlocks.cpp
+VirtThread.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Common\CoderMixer2.cpp ../../Archive/Common\DummyOutStream.cpp ../../Archive/Common\FindSignature.cpp ../../Archive/Common\InStreamWithCRC.cpp ../../Archive/Common\ItemNameUtils.cpp ../../Archive/Common\MultiStream.cpp ../../Archive/Common\OutStreamWithCRC.cpp ../../Archive/Common\OutStreamWithSha1.cpp ../../Archive/Common\HandlerOut.cpp ../../Archive/Common\ParseProperties.cpp 
+CoderMixer2.cpp
+DummyOutStream.cpp
+FindSignature.cpp
+InStreamWithCRC.cpp
+ItemNameUtils.cpp
+MultiStream.cpp
+OutStreamWithCRC.cpp
+OutStreamWithSha1.cpp
+HandlerOut.cpp
+ParseProperties.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive\ApfsHandler.cpp ../../Archive\ApmHandler.cpp ../../Archive\ArHandler.cpp ../../Archive\ArjHandler.cpp ../../Archive\Base64Handler.cpp ../../Archive\Bz2Handler.cpp ../../Archive\ComHandler.cpp ../../Archive\CpioHandler.cpp ../../Archive\CramfsHandler.cpp ../../Archive\DeflateProps.cpp ../../Archive\DmgHandler.cpp ../../Archive\ElfHandler.cpp ../../Archive\ExtHandler.cpp ../../Archive\FatHandler.cpp ../../Archive\FlvHandler.cpp ../../Archive\GzHandler.cpp ../../Archive\GptHandler.cpp ../../Archive\HandlerCont.cpp ../../Archive\HfsHandler.cpp ../../Archive\IhexHandler.cpp ../../Archive\LpHandler.cpp ../../Archive\LzhHandler.cpp ../../Archive\LzmaHandler.cpp ../../Archive\MachoHandler.cpp ../../Archive\MbrHandler.cpp ../../Archive\MslzHandler.cpp ../../Archive\MubHandler.cpp ../../Archive\N3dsHandler.cpp ../../Archive\NtfsHandler.cpp ../../Archive\PeHandler.cpp ../../Archive\PpmdHandler.cpp ../../Archive\QcowHandler.cpp ../../Archive\RpmHandler.cpp ../../Archive\SparseHandler.cpp ../../Archive\SplitHandler.cpp ../../Archive\SquashfsHandler.cpp ../../Archive\SwfHandler.cpp ../../Archive\UefiHandler.cpp ../../Archive\VdiHandler.cpp ../../Archive\VhdHandler.cpp ../../Archive\VhdxHandler.cpp ../../Archive\VmdkHandler.cpp ../../Archive\XarHandler.cpp ../../Archive\XzHandler.cpp ../../Archive\ZHandler.cpp ../../Archive\ZstdHandler.cpp ../../Archive\ArchiveExports.cpp ../../Archive\DllExports2.cpp 
+ApfsHandler.cpp
+ApmHandler.cpp
+ArHandler.cpp
+ArjHandler.cpp
+Base64Handler.cpp
+Bz2Handler.cpp
+ComHandler.cpp
+CpioHandler.cpp
+CramfsHandler.cpp
+DeflateProps.cpp
+DmgHandler.cpp
+ElfHandler.cpp
+ExtHandler.cpp
+FatHandler.cpp
+FlvHandler.cpp
+GzHandler.cpp
+GptHandler.cpp
+HandlerCont.cpp
+HfsHandler.cpp
+IhexHandler.cpp
+LpHandler.cpp
+LzhHandler.cpp
+LzmaHandler.cpp
+MachoHandler.cpp
+MbrHandler.cpp
+MslzHandler.cpp
+MubHandler.cpp
+N3dsHandler.cpp
+NtfsHandler.cpp
+PeHandler.cpp
+PpmdHandler.cpp
+QcowHandler.cpp
+RpmHandler.cpp
+SparseHandler.cpp
+SplitHandler.cpp
+SquashfsHandler.cpp
+SwfHandler.cpp
+UefiHandler.cpp
+VdiHandler.cpp
+VhdHandler.cpp
+VhdxHandler.cpp
+VmdkHandler.cpp
+XarHandler.cpp
+XzHandler.cpp
+ZHandler.cpp
+ZstdHandler.cpp
+ArchiveExports.cpp
+DllExports2.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/7z\7zCompressionMode.cpp ../../Archive/7z\7zDecode.cpp ../../Archive/7z\7zEncode.cpp ../../Archive/7z\7zExtract.cpp ../../Archive/7z\7zFolderInStream.cpp ../../Archive/7z\7zHandler.cpp ../../Archive/7z\7zHandlerOut.cpp ../../Archive/7z\7zHeader.cpp ../../Archive/7z\7zIn.cpp ../../Archive/7z\7zOut.cpp ../../Archive/7z\7zProperties.cpp ../../Archive/7z\7zSpecStream.cpp ../../Archive/7z\7zUpdate.cpp ../../Archive/7z\7zRegister.cpp 
+7zCompressionMode.cpp
+7zDecode.cpp
+7zEncode.cpp
+7zExtract.cpp
+7zFolderInStream.cpp
+7zHandler.cpp
+7zHandlerOut.cpp
+7zHeader.cpp
+7zIn.cpp
+7zOut.cpp
+7zProperties.cpp
+7zSpecStream.cpp
+7zUpdate.cpp
+7zRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Cab\CabBlockInStream.cpp ../../Archive/Cab\CabHandler.cpp ../../Archive/Cab\CabHeader.cpp ../../Archive/Cab\CabIn.cpp ../../Archive/Cab\CabRegister.cpp 
+CabBlockInStream.cpp
+CabHandler.cpp
+CabHeader.cpp
+CabIn.cpp
+CabRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Chm\ChmHandler.cpp ../../Archive/Chm\ChmIn.cpp 
+ChmHandler.cpp
+ChmIn.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Iso\IsoHandler.cpp ../../Archive/Iso\IsoHeader.cpp ../../Archive/Iso\IsoIn.cpp ../../Archive/Iso\IsoRegister.cpp 
+IsoHandler.cpp
+IsoHeader.cpp
+IsoIn.cpp
+IsoRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Nsis\NsisDecode.cpp ../../Archive/Nsis\NsisHandler.cpp ../../Archive/Nsis\NsisIn.cpp ../../Archive/Nsis\NsisRegister.cpp 
+NsisDecode.cpp
+NsisHandler.cpp
+NsisIn.cpp
+NsisRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Rar\RarHandler.cpp ../../Archive/Rar\Rar5Handler.cpp 
+RarHandler.cpp
+Rar5Handler.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Tar\TarHandler.cpp ../../Archive/Tar\TarHandlerOut.cpp ../../Archive/Tar\TarHeader.cpp ../../Archive/Tar\TarIn.cpp ../../Archive/Tar\TarOut.cpp ../../Archive/Tar\TarUpdate.cpp ../../Archive/Tar\TarRegister.cpp 
+TarHandler.cpp
+TarHandlerOut.cpp
+TarHeader.cpp
+TarIn.cpp
+TarOut.cpp
+TarUpdate.cpp
+TarRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Udf\UdfHandler.cpp ../../Archive/Udf\UdfIn.cpp 
+UdfHandler.cpp
+UdfIn.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Wim\WimHandler.cpp ../../Archive/Wim\WimHandlerOut.cpp ../../Archive/Wim\WimIn.cpp ../../Archive/Wim\WimRegister.cpp 
+WimHandler.cpp
+WimHandlerOut.cpp
+WimIn.cpp
+WimRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O1 -Yu"StdAfx.h" -Fpx64/a.pch ../../Archive/Zip\ZipAddCommon.cpp ../../Archive/Zip\ZipHandler.cpp ../../Archive/Zip\ZipHandlerOut.cpp ../../Archive/Zip\ZipIn.cpp ../../Archive/Zip\ZipItem.cpp ../../Archive/Zip\ZipOut.cpp ../../Archive/Zip\ZipUpdate.cpp ../../Archive/Zip\ZipRegister.cpp  
+ZipAddCommon.cpp
+ZipHandler.cpp
+ZipHandlerOut.cpp
+ZipIn.cpp
+ZipItem.cpp
+ZipOut.cpp
+ZipUpdate.cpp
+ZipRegister.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O2 ../../Compress\Bcj2Coder.cpp ../../Compress\Bcj2Register.cpp ../../Compress\BcjCoder.cpp ../../Compress\BcjRegister.cpp ../../Compress\BitlDecoder.cpp ../../Compress\BranchMisc.cpp ../../Compress\BranchRegister.cpp ../../Compress\ByteSwap.cpp ../../Compress\BZip2Crc.cpp ../../Compress\BZip2Decoder.cpp ../../Compress\BZip2Encoder.cpp ../../Compress\BZip2Register.cpp ../../Compress\CopyCoder.cpp ../../Compress\CopyRegister.cpp ../../Compress\Deflate64Register.cpp ../../Compress\DeflateDecoder.cpp ../../Compress\DeflateEncoder.cpp ../../Compress\DeflateRegister.cpp ../../Compress\DeltaFilter.cpp ../../Compress\ImplodeDecoder.cpp ../../Compress\LzfseDecoder.cpp ../../Compress\LzhDecoder.cpp ../../Compress\Lzma2Decoder.cpp ../../Compress\Lzma2Encoder.cpp ../../Compress\Lzma2Register.cpp ../../Compress\LzmaDecoder.cpp ../../Compress\LzmaEncoder.cpp ../../Compress\LzmaRegister.cpp ../../Compress\LzmsDecoder.cpp ../../Compress\LzOutWindow.cpp ../../Compress\LzxDecoder.cpp ../../Compress\PpmdDecoder.cpp ../../Compress\PpmdEncoder.cpp ../../Compress\PpmdRegister.cpp ../../Compress\PpmdZip.cpp ../../Compress\QuantumDecoder.cpp ../../Compress\Rar1Decoder.cpp ../../Compress\Rar2Decoder.cpp ../../Compress\Rar3Decoder.cpp ../../Compress\Rar3Vm.cpp ../../Compress\Rar5Decoder.cpp ../../Compress\RarCodecsRegister.cpp ../../Compress\ShrinkDecoder.cpp ../../Compress\XpressDecoder.cpp ../../Compress\XzDecoder.cpp ../../Compress\XzEncoder.cpp ../../Compress\ZlibDecoder.cpp ../../Compress\ZlibEncoder.cpp ../../Compress\ZDecoder.cpp ../../Compress\ZstdDecoder.cpp ../../Compress\CodecExports.cpp 
+Bcj2Coder.cpp
+Bcj2Register.cpp
+BcjCoder.cpp
+BcjRegister.cpp
+BranchMisc.cpp
+BitlDecoder.cpp
+BranchRegister.cpp
+ByteSwap.cpp
+BZip2Crc.cpp
+BZip2Decoder.cpp
+BZip2Encoder.cpp
+BZip2Register.cpp
+CopyCoder.cpp
+CopyRegister.cpp
+Deflate64Register.cpp
+DeflateDecoder.cpp
+DeflateEncoder.cpp
+DeflateRegister.cpp
+DeltaFilter.cpp
+ImplodeDecoder.cpp
+LzfseDecoder.cpp
+LzhDecoder.cpp
+Lzma2Decoder.cpp
+Lzma2Encoder.cpp
+Lzma2Register.cpp
+LzmaDecoder.cpp
+LzmaEncoder.cpp
+LzmaRegister.cpp
+LzmsDecoder.cpp
+LzOutWindow.cpp
+LzxDecoder.cpp
+PpmdDecoder.cpp
+PpmdEncoder.cpp
+PpmdRegister.cpp
+PpmdZip.cpp
+QuantumDecoder.cpp
+Rar1Decoder.cpp
+Rar2Decoder.cpp
+Rar3Decoder.cpp
+Rar3Vm.cpp
+Rar5Decoder.cpp
+RarCodecsRegister.cpp
+ShrinkDecoder.cpp
+XpressDecoder.cpp
+XzDecoder.cpp
+XzEncoder.cpp
+ZlibDecoder.cpp
+ZlibEncoder.cpp
+ZDecoder.cpp
+ZstdDecoder.cpp
+CodecExports.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O2 ../../Crypto\7zAes.cpp ../../Crypto\7zAesRegister.cpp ../../Crypto\HmacSha1.cpp ../../Crypto\HmacSha256.cpp ../../Crypto\MyAes.cpp ../../Crypto\MyAesReg.cpp ../../Crypto\Pbkdf2HmacSha1.cpp ../../Crypto\RandGen.cpp ../../Crypto\Rar20Crypto.cpp ../../Crypto\Rar5Aes.cpp ../../Crypto\RarAes.cpp ../../Crypto\WzAes.cpp ../../Crypto\ZipCrypto.cpp ../../Crypto\ZipStrong.cpp 
+7zAes.cpp
+7zAesRegister.cpp
+HmacSha1.cpp
+HmacSha256.cpp
+MyAes.cpp
+MyAesReg.cpp
+Pbkdf2HmacSha1.cpp
+RandGen.cpp
+Rar20Crypto.cpp
+Rar5Aes.cpp
+RarAes.cpp
+WzAes.cpp
+ZipCrypto.cpp
+ZipStrong.cpp
+	cl    -DZ7_EXTERNAL_CODECS -Gr -nologo -c -Fox64/ -Wall -WX -EHsc -Gy -GR- -GF -MT -GS- -Zc:wchar_t -Zc:throwingNew -MP8 -O2 -DZ7_LZMA_DEC_OPT ../../../../C\7zBuf2.c ../../../../C\7zStream.c ../../../../C\Alloc.c ../../../../C\Bcj2.c ../../../../C\Bcj2Enc.c ../../../../C\Blake2s.c ../../../../C\Bra.c ../../../../C\Bra86.c ../../../../C\BraIA64.c ../../../../C\BwtSort.c ../../../../C\CpuArch.c ../../../../C\Delta.c ../../../../C\HuffEnc.c ../../../../C\LzFind.c ../../../../C\LzFindMt.c ../../../../C\Lzma2Dec.c ../../../../C\Lzma2DecMt.c ../../../../C\Lzma2Enc.c ../../../../C\LzmaDec.c ../../../../C\LzmaEnc.c ../../../../C\Md5.c ../../../../C\MtCoder.c ../../../../C\MtDec.c ../../../../C\Ppmd7.c ../../../../C\Ppmd7Dec.c ../../../../C\Ppmd7aDec.c ../../../../C\Ppmd7Enc.c ../../../../C\Ppmd8.c ../../../../C\Ppmd8Dec.c ../../../../C\Ppmd8Enc.c ../../../../C\Sha3.c ../../../../C\Sha512.c ../../../../C\Sha512Opt.c ../../../../C\SwapBytes.c ../../../../C\Threads.c ../../../../C\Xxh64.c ../../../../C\Xz.c ../../../../C\XzDec.c ../../../../C\XzEnc.c ../../../../C\XzIn.c ../../../../C\ZstdDec.c ../../../../C\Aes.c ../../../../C\7zCrc.c ../../../../C\XzCrc64.c ../../../../C\Sha1.c ../../../../C\Sha256.c 
+7zBuf2.c
+7zStream.c
+Alloc.c
+Bcj2.c
+Bcj2Enc.c
+Blake2s.c
+Bra.c
+Bra86.c
+BraIA64.c
+BwtSort.c
+CpuArch.c
+Delta.c
+HuffEnc.c
+LzFind.c
+LzFindMt.c
+Lzma2Dec.c
+Lzma2DecMt.c
+Lzma2Enc.c
+LzmaDec.c
+LzmaEnc.c
+Md5.c
+MtCoder.c
+MtDec.c
+Ppmd7.c
+Ppmd7Dec.c
+Ppmd7aDec.c
+Ppmd7Enc.c
+Ppmd8.c
+Ppmd8Dec.c
+Ppmd8Enc.c
+Sha3.c
+Sha512.c
+Sha512Opt.c
+SwapBytes.c
+Threads.c
+Xxh64.c
+Xz.c
+XzDec.c
+XzEnc.c
+XzIn.c
+ZstdDec.c
+Aes.c
+7zCrc.c
+XzCrc64.c
+Sha1.c
+Sha256.c
+	link  -nologo -OPT:REF -OPT:ICF -INCREMENTAL:NO /LARGEADDRESSAWARE -DLL -DEF:../../Archive/Archive2.def -out:x64\7z.dll x64\StdAfx.obj    x64\CRC.obj  x64\CrcReg.obj  x64\DynLimBuf.obj  x64\IntToString.obj  x64\LzFindPrepare.obj  x64\Md5Reg.obj  x64\MyMap.obj  x64\MyString.obj  x64\MyVector.obj  x64\MyXml.obj  x64\NewHandler.obj  x64\Sha1Reg.obj  x64\Sha256Reg.obj  x64\Sha3Reg.obj  x64\Sha512Reg.obj  x64\Sha512Prepare.obj  x64\StringConvert.obj  x64\StringToInt.obj  x64\UTFConvert.obj  x64\Wildcard.obj  x64\Xxh64Reg.obj  x64\XzCrc64Init.obj  x64\XzCrc64Reg.obj  x64\Sha1Prepare.obj  x64\Sha256Prepare.obj  x64\FileDir.obj  x64\FileFind.obj  x64\FileIO.obj  x64\FileName.obj  x64\PropVariant.obj  x64\PropVariantConv.obj  x64\PropVariantUtils.obj  x64\Synchronization.obj  x64\System.obj  x64\TimeUtils.obj    x64\CreateCoder.obj  x64\CWrappers.obj  x64\InBuffer.obj  x64\InOutTempBuffer.obj  x64\FilterCoder.obj  x64\LimitedStreams.obj  x64\LockedStream.obj  x64\MemBlocks.obj  x64\MethodId.obj  x64\MethodProps.obj  x64\OffsetStream.obj  x64\OutBuffer.obj  x64\OutMemStream.obj  x64\ProgressMt.obj  x64\ProgressUtils.obj  x64\PropId.obj  x64\StreamBinder.obj  x64\StreamObjects.obj  x64\StreamUtils.obj  x64\UniqBlocks.obj  x64\VirtThread.obj              x64\CoderMixer2.obj  x64\DummyOutStream.obj  x64\FindSignature.obj  x64\InStreamWithCRC.obj  x64\ItemNameUtils.obj  x64\MultiStream.obj  x64\OutStreamWithCRC.obj  x64\OutStreamWithSha1.obj  x64\HandlerOut.obj  x64\ParseProperties.obj  x64\ApfsHandler.obj  x64\ApmHandler.obj  x64\ArHandler.obj  x64\ArjHandler.obj  x64\Base64Handler.obj  x64\Bz2Handler.obj  x64\ComHandler.obj  x64\CpioHandler.obj  x64\CramfsHandler.obj  x64\DeflateProps.obj  x64\DmgHandler.obj  x64\ElfHandler.obj  x64\ExtHandler.obj  x64\FatHandler.obj  x64\FlvHandler.obj  x64\GzHandler.obj  x64\GptHandler.obj  x64\HandlerCont.obj  x64\HfsHandler.obj  x64\IhexHandler.obj  x64\LpHandler.obj  x64\LzhHandler.obj  x64\LzmaHandler.obj  x64\MachoHandler.obj  x64\MbrHandler.obj  x64\MslzHandler.obj  x64\MubHandler.obj  x64\N3dsHandler.obj  x64\NtfsHandler.obj  x64\PeHandler.obj  x64\PpmdHandler.obj  x64\QcowHandler.obj  x64\RpmHandler.obj  x64\SparseHandler.obj  x64\SplitHandler.obj  x64\SquashfsHandler.obj  x64\SwfHandler.obj  x64\UefiHandler.obj  x64\VdiHandler.obj  x64\VhdHandler.obj  x64\VhdxHandler.obj  x64\VmdkHandler.obj  x64\XarHandler.obj  x64\XzHandler.obj  x64\ZHandler.obj  x64\ZstdHandler.obj  x64\ArchiveExports.obj  x64\DllExports2.obj  x64\7zCompressionMode.obj  x64\7zDecode.obj  x64\7zEncode.obj  x64\7zExtract.obj  x64\7zFolderInStream.obj  x64\7zHandler.obj  x64\7zHandlerOut.obj  x64\7zHeader.obj  x64\7zIn.obj  x64\7zOut.obj  x64\7zProperties.obj  x64\7zSpecStream.obj  x64\7zUpdate.obj  x64\7zRegister.obj  x64\CabBlockInStream.obj  x64\CabHandler.obj  x64\CabHeader.obj  x64\CabIn.obj  x64\CabRegister.obj  x64\ChmHandler.obj  x64\ChmIn.obj    x64\IsoHandler.obj  x64\IsoHeader.obj  x64\IsoIn.obj  x64\IsoRegister.obj  x64\NsisDecode.obj  x64\NsisHandler.obj  x64\NsisIn.obj  x64\NsisRegister.obj  x64\RarHandler.obj  x64\Rar5Handler.obj  x64\TarHandler.obj  x64\TarHandlerOut.obj  x64\TarHeader.obj  x64\TarIn.obj  x64\TarOut.obj  x64\TarUpdate.obj  x64\TarRegister.obj  x64\UdfHandler.obj  x64\UdfIn.obj  x64\WimHandler.obj  x64\WimHandlerOut.obj  x64\WimIn.obj  x64\WimRegister.obj  x64\ZipAddCommon.obj  x64\ZipHandler.obj  x64\ZipHandlerOut.obj  x64\ZipIn.obj  x64\ZipItem.obj  x64\ZipOut.obj  x64\ZipUpdate.obj  x64\ZipRegister.obj  x64\Bcj2Coder.obj  x64\Bcj2Register.obj  x64\BcjCoder.obj  x64\BcjRegister.obj  x64\BitlDecoder.obj  x64\BranchMisc.obj  x64\BranchRegister.obj  x64\ByteSwap.obj  x64\BZip2Crc.obj  x64\BZip2Decoder.obj  x64\BZip2Encoder.obj  x64\BZip2Register.obj  x64\CopyCoder.obj  x64\CopyRegister.obj  x64\Deflate64Register.obj  x64\DeflateDecoder.obj  x64\DeflateEncoder.obj  x64\DeflateRegister.obj  x64\DeltaFilter.obj  x64\ImplodeDecoder.obj  x64\LzfseDecoder.obj  x64\LzhDecoder.obj  x64\Lzma2Decoder.obj  x64\Lzma2Encoder.obj  x64\Lzma2Register.obj  x64\LzmaDecoder.obj  x64\LzmaEncoder.obj  x64\LzmaRegister.obj  x64\LzmsDecoder.obj  x64\LzOutWindow.obj  x64\LzxDecoder.obj  x64\PpmdDecoder.obj  x64\PpmdEncoder.obj  x64\PpmdRegister.obj  x64\PpmdZip.obj  x64\QuantumDecoder.obj  x64\Rar1Decoder.obj  x64\Rar2Decoder.obj  x64\Rar3Decoder.obj  x64\Rar3Vm.obj  x64\Rar5Decoder.obj  x64\RarCodecsRegister.obj  x64\ShrinkDecoder.obj  x64\XpressDecoder.obj  x64\XzDecoder.obj  x64\XzEncoder.obj  x64\ZlibDecoder.obj  x64\ZlibEncoder.obj  x64\ZDecoder.obj  x64\ZstdDecoder.obj  x64\CodecExports.obj  x64\7zAes.obj  x64\7zAesRegister.obj  x64\HmacSha1.obj  x64\HmacSha256.obj  x64\MyAes.obj  x64\MyAesReg.obj  x64\Pbkdf2HmacSha1.obj  x64\RandGen.obj  x64\Rar20Crypto.obj  x64\Rar5Aes.obj  x64\RarAes.obj  x64\WzAes.obj  x64\ZipCrypto.obj  x64\ZipStrong.obj  x64\7zBuf2.obj  x64\7zStream.obj  x64\Alloc.obj  x64\Bcj2.obj  x64\Bcj2Enc.obj  x64\Blake2s.obj  x64\Bra.obj  x64\Bra86.obj  x64\BraIA64.obj  x64\BwtSort.obj  x64\CpuArch.obj  x64\Delta.obj  x64\HuffEnc.obj  x64\LzFind.obj  x64\LzFindMt.obj  x64\Lzma2Dec.obj  x64\Lzma2DecMt.obj  x64\Lzma2Enc.obj  x64\LzmaDec.obj  x64\LzmaEnc.obj  x64\Md5.obj  x64\MtCoder.obj  x64\MtDec.obj  x64\Ppmd7.obj  x64\Ppmd7Dec.obj  x64\Ppmd7aDec.obj  x64\Ppmd7Enc.obj  x64\Ppmd8.obj  x64\Ppmd8Dec.obj  x64\Ppmd8Enc.obj  x64\Sha3.obj  x64\Sha512.obj  x64\Sha512Opt.obj  x64\SwapBytes.obj  x64\Threads.obj  x64\Xxh64.obj  x64\Xz.obj  x64\XzDec.obj  x64\XzEnc.obj  x64\XzIn.obj  x64\ZstdDec.obj  x64\Aes.obj  x64\7zCrc.obj  x64\XzCrc64.obj  x64\Sha1.obj  x64\Sha256.obj    x64\AesOpt.obj  x64\7zCrcOpt.obj  x64\XzCrc64Opt.obj  x64\LzFindOpt.obj  x64\LzmaDecOpt.obj  x64\Sha1Opt.obj  x64\Sha256Opt.obj  x64\Sort.obj  x64\resource.res  oleaut32.lib ole32.lib user32.lib advapi32.lib shell32.lib
+  æ­£åœ¨åˆ›å»ºåº“ x64\7z.lib å’Œå¯¹è±¡ x64\7z.exp

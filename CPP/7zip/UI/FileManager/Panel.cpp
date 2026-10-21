@@ -754,14 +754,14 @@ bool CPanel::OnCommand(unsigned code, unsigned itemID, LPARAM lParam, LRESULT &r
 void CPanel::MessageBox_Info(LPCWSTR message, LPCWSTR caption) const
   { ::MessageBoxW((HWND)*this, message, caption, MB_OK); }
 void CPanel::MessageBox_Warning(LPCWSTR message) const
-  { ::MessageBoxW((HWND)*this, message, L"7-Zip", MB_OK | MB_ICONWARNING); }
+  { ::MessageBoxW((HWND)*this, message, L"7-Zip CTR", MB_OK | MB_ICONWARNING); }
 */
 
 void CPanel::MessageBox_Error_Caption(LPCWSTR message, LPCWSTR caption) const
   { ::MessageBoxW((HWND)*this, message, caption, MB_OK | MB_ICONSTOP); }
 
 void CPanel::MessageBox_Error(LPCWSTR message) const
-  { MessageBox_Error_Caption(message, L"7-Zip"); }
+  { MessageBox_Error_Caption(message, L"7-Zip CTR"); }
 
 static UString ErrorHResult_To_Message(HRESULT errorCode)
 {
@@ -776,7 +776,7 @@ void CPanel::MessageBox_Error_HRESULT_Caption(HRESULT errorCode, LPCWSTR caption
 }
 
 void CPanel::MessageBox_Error_HRESULT(HRESULT errorCode) const
-  { MessageBox_Error_HRESULT_Caption(errorCode, L"7-Zip"); }
+  { MessageBox_Error_HRESULT_Caption(errorCode, L"7-Zip CTR"); }
 
 void CPanel::MessageBox_Error_2Lines_Message_HRESULT(LPCWSTR message, HRESULT errorCode) const
 {
@@ -790,7 +790,7 @@ void CPanel::MessageBox_LastError(LPCWSTR caption) const
   { MessageBox_Error_HRESULT_Caption(GetLastError_noZero_HRESULT(), caption); }
 
 void CPanel::MessageBox_LastError() const
-  { MessageBox_LastError(L"7-Zip"); }
+  { MessageBox_LastError(L"7-Zip CTR"); }
 
 void CPanel::MessageBox_Error_LangID(UINT resourceID) const
   { MessageBox_Error(LangString(resourceID)); }
@@ -1146,7 +1146,7 @@ void CPanel::TestArchives()
     
     extracter.ProgressDialog.CompressingMode = false;
     extracter.ProgressDialog.MainWindow = GetParent();
-    extracter.ProgressDialog.MainTitle = "7-Zip"; // LangString(IDS_APP_TITLE);
+    extracter.ProgressDialog.MainTitle = "7-Zip CTR"; // LangString(IDS_APP_TITLE);
     extracter.ProgressDialog.MainAddTitle = title + L' ';
     
     extracter.ExtractCallbackSpec->OverwriteMode = NExtract::NOverwriteMode::kAskBefore;

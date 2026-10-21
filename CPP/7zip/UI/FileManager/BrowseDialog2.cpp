@@ -60,7 +60,7 @@ static const int kParentIndex = -1;
 
 
 static const wchar_t * const k_Message_Link_operation_was_Blocked =
-    L"link openning was blocked by 7-Zip";
+    L"link openning was blocked by 7-Zip CTR";
 
 extern UString HResultToMessage(HRESULT errorCode);
 
@@ -346,7 +346,7 @@ bool CBrowseDialog2::OnInit()
       // f.Description += ")";
     }
     */
-    _filterCombo.AddString(L"7-Zip temp files (7z*)");
+    _filterCombo.AddString(L"7-Zip CTR temp files (7z*)");
     _filterCombo.SetCurSel(0);
     EnableItem(IDC_BROWSE2_FILTER, false);
 #if 0
@@ -1219,7 +1219,7 @@ bool CBrowseDialog2::OnContextMenu(HANDLE windowHandle, int xPos, int yPos)
         s = LangString(IDM_OPEN_OUTSIDE);
         if (s.IsEmpty())
           s = "Open Outside";
-        s += " : 7-Zip";
+        s += " : 7-Zip CTR";
       }
       else if (cmd == k_CmdId_Props)
       {

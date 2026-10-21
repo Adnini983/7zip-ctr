@@ -44,21 +44,36 @@
    - `pub\`  —— 可上传 GitHub
    - `priv\` —— 机器特有（OTP / movable.sed 派生），**勿上传**
 
-## 电脑端转换：`aeskeys2ctr.py`
+## 电脑端转换：`aeskeys2ctr`
 
 把 GodMode9 的输出统一转成 handler 的 `3dskey\` / `3dskey_dev\` 文本格式，
-并再次按可上传 / 不可上传分类。
+并再次按可上传 / 不可上传分类。提供两个等价工具，**二选一**：
+
+- `gm9tools\aeskeys2ctr.bat` —— **无需 Python**，调用系统自带 PowerShell，
+  适合没有 Python 环境的 Windows；
+- `gm9tools\aeskeys2ctr.py` —— Python 版，逻辑与 BAT 完全一致。
+
+输入可以是：`aes_keys.txt` / `aeskeydb.bin` / 一目录的 `slot0x*.bin`。
+
+```bat
+rem --- BAT 版（无需 Python）---
+gm9tools\aeskeys2ctr.bat <aes_keys.txt> --out <输出目录>
+
+rem 开发机 dump 用 --devkit（pub 全部进 3dskey_dev\）
+gm9tools\aeskeys2ctr.bat <devkit_aes_keys.txt> --out <输出目录> --devkit
+
+rem 可选：确认所有 keyX 与公开值一致时全公开（--all-pub）
+gm9tools\aeskeys2ctr.bat <aes_keys.txt> --out <输出目录> --all-pub
+```
 
 ```bash
-# 输入可以是：aes_keys.txt / aeskeydb.bin / 一目录的 slot0x*.bin
+# --- Python 版（需要 Python 环境）---
 python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录>
-
-# 开发机 dump 用 --devkit（pub 全部进 3dskey_dev\）
 python gm9tools\aeskeys2ctr.py <devkit_aes_keys.txt> --out <输出目录> --devkit
-
-# 可选：你确认所有 keyX 与公开值一致时可全公开（--all-pub）
 python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 ```
+
+两个工具参数、分类规则、输出布局完全相同，可互换。
 
 输出：
 
