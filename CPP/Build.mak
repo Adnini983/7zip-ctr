@@ -77,7 +77,7 @@ CFLAGS_WARN_LEVEL = -Wall --analyze -Xclang -analyzer-output=text
 CFLAGS_WARN_LEVEL = -Wall
 !ENDIF
 
-CFLAGS = $(CFLAGS) -nologo $(CFLAGS_c_switch) $(CFLAGS_WARN_LEVEL) -WX -EHsc -Gy -GR- -GF
+CFLAGS = $(CFLAGS) -nologo $(CFLAGS_c_switch) $(CFLAGS_WARN_LEVEL) -WX -EHsc -Gy -GR- -GF /utf-8
 
 !IF "$(CC)" == "clang-cl"
 CFLAGS = $(CFLAGS) -Werror -Wall -Wextra -Weverything -Wfatal-errors
