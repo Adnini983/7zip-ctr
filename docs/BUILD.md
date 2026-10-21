@@ -63,10 +63,11 @@ CPP\7zip\UI\Console         -> x64\7z.exe      （命令行，依赖同目录 7z
 `7zG.exe`（GUI）与 `7-zip.dll`（Explorer 外壳扩展）不在 CI 内编译，需要时按上面
 本地步骤补编。CI 产物不含密钥与 `seeddb.bin`（这些按“交付目录”一节另行放置）。
 
-> 云编译前 `build.yml` 会先 `set CL=` 清空 runner 可能注入的命令行标志，
-> `CPP\Build.mak` 又对 MSVC 统一显式加 `/utf-8`：两者配合让 PCH 建立（`-Yc`）与
-> 消费（`-Yu`）使用完全一致的字符集，避免 `error C2855: command-line option
-> '/source-charset' inconsistent with precompiled header`。
+> 云编译前 `build.yml` 会先 `set CL=` 清空 runner 可能注入的命令行标志；
+> `CPP\Build.mak` 对 MSVC 统一追加 `/Y-` 关闭预编译头（PCH），各源文件独立编译，
+> 从根本上绕开 `error C2855: command-line option '/source-charset' inconsistent
+> with precompiled header`（该错误由 `-Yc` 建 PCH 与 `-Yu` 消费两侧字符集不一致
+> 触发，与本机环境是否注入 charset 无关）。
 
 ## 交付目录
 

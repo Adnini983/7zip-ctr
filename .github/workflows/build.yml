@@ -25,9 +25,11 @@ jobs:
           set /p VS_PATH=<vs_path.txt
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
 
-          rem Clear any externally-injected CL flags (e.g. /utf-8) so the
-          rem -Yc PCH build and -Yu PCH use share identical charset options;
-          rem otherwise MSVC raises C2855 (charset inconsistent with PCH).
+          rem Clear any externally-injected CL flags so the build starts from a
+          rem clean environment. PCH (precompiled header) consistency issues are
+          rem handled in CPP/Build.mak (it adds /Y- to disable the PCH), which
+          rem avoids MSVC C2855 (charset inconsistent with precompiled header)
+          rem regardless of the runner environment.
           set CL=
 
           cd CPP\7zip\Bundles\Format7zF
