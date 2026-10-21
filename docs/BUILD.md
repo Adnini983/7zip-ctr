@@ -63,6 +63,11 @@ CPP\7zip\UI\Console         -> x64\7z.exe      （命令行，依赖同目录 7z
 `7zG.exe`（GUI）与 `7-zip.dll`（Explorer 外壳扩展）不在 CI 内编译，需要时按上面
 本地步骤补编。CI 产物不含密钥与 `seeddb.bin`（这些按“交付目录”一节另行放置）。
 
+> 云编译前 `build.yml` 会先 `set CL=` 清空 runner 可能注入的命令行标志，
+> `CPP\Build.mak` 又对 MSVC 统一显式加 `/utf-8`：两者配合让 PCH 建立（`-Yc`）与
+> 消费（`-Yu`）使用完全一致的字符集，避免 `error C2855: command-line option
+> '/source-charset' inconsistent with precompiled header`。
+
 ## 交付目录
 
 构建成功后把下列文件放一起（7z.dll 与密钥同目录）：
