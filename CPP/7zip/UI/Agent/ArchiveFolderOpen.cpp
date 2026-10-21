@@ -205,12 +205,42 @@ Z7_COM7F_IMF(CArchiveFolderManager::GetIconPath(const wchar_t *ext, BSTR *iconPa
   #endif
 
   int ii;
-  if (InternalIcons.FindIconIndex(ext, ii))
+  if (InternalIcons.FindIconIndex(ext, ii) && ii >= 0)
   {
     FString path;
     if (NWindows::NDLL::MyGetModuleFileName(path))
     {
       *iconIndex = ii;
+      return StringToBstr(fs2us(path), iconPath);
+    }
+  }
+
+  // Fallback: resolve format icons that have no dedicated Fm icon from the
+  // same-folder 7z.dll (its own icon table, indices match Format7zF/resource.rc).
+  static const struct { const wchar_t *ext; int index; } kDllIcons[] =
+  {
+    { L"7z", 0 }, { L"zip", 1 }, { L"bz2", 2 }, { L"bzip2", 2 }, { L"rar", 3 },
+    { L"arj", 4 }, { L"z", 5 }, { L"taz", 5 }, { L"lzh", 6 }, { L"lha", 6 },
+    { L"cab", 7 }, { L"iso", 8 }, { L"split", 9 }, { L"001", 9 },
+    { L"rpm", 10 }, { L"deb", 11 }, { L"cpio", 12 }, { L"tar", 13 },
+    { L"gz", 14 }, { L"gzip", 14 }, { L"tgz", 14 }, { L"tpz", 14 },
+    { L"wim", 15 }, { L"swm", 15 }, { L"esd", 15 }, { L"lzma", 16 },
+    { L"dmg", 17 }, { L"hfs", 18 }, { L"xar", 19 }, { L"vhd", 20 },
+    { L"vhdx", 20 }, { L"fat", 21 }, { L"ntfs", 22 }, { L"xz", 23 },
+    { L"txz", 23 }, { L"squashfs", 24 }, { L"apfs", 25 }, { L"zst", 26 },
+    { L"tzst", 26 },
+    { L"3ds", 27 }, { L"cci", 28 }, { L"3dz", 29 }, { L"csu", 30 },
+    { L"ncch", 31 }, { L"cxi", 32 }, { L"cfa", 33 }, { L"app", 34 },
+    { L"firm", 35 }, { L"cnt", 36 }, { L"bin", 37 }, { L"tmd", 37 },
+    { L"romfs", 38 },
+    { L"exefs", 39 }, { L"cia", 40 }
+  };
+  for (unsigned k = 0; k < sizeof(kDllIcons)/sizeof(kDllIcons[0]); k++)
+  {
+    if (ext && _wcsicmp(ext, kDllIcons[k].ext) == 0)
+    {
+      FString path = NWindows::NDLL::GetModuleDirPrefix() + FTEXT("7z.dll");
+      *iconIndex = kDllIcons[k].index;
       return StringToBstr(fs2us(path), iconPath);
     }
   }

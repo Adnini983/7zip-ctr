@@ -1015,7 +1015,7 @@ Z7_COMWF_B CZipContextMenu::QueryContextMenu(HMENU hMenu, UINT indexMenu,
     CMenu menu;
     menu.Attach(hMenu);
     menuDestroyer.Disable();
-    MyAddSubMenu(_commandMap, kMainVerb, menu, indexMenu++, currentCommandID++, (UString)"7-Zip",
+    MyAddSubMenu(_commandMap, kMainVerb, menu, indexMenu++, currentCommandID++, (UString)"7-Zip CTR",
         popupMenu, // popupMenu.Detach(),
         bitmap);
   }

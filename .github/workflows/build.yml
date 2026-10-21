@@ -8,52 +8,55 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2025
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-
-      - name: Setup MSVC
+      - name: Setup MSVC and build (7z.dll, 7zFM.exe, 7z.exe)
         shell: cmd
         run: |
           call "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
-          -latest ^
-          -products * ^
-          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
-          -property installationPath > vs_path.txt
-
+            -latest ^
+            -products * ^
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+            -property installationPath > vs_path.txt
           set /p VS_PATH=<vs_path.txt
-
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-
-          cl
-
-
-      - name: Build 7-Zip CTR
-        shell: cmd
-        run: |
-          call "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
-          -latest ^
-          -products * ^
-          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
-          -property installationPath > vs_path.txt
-
-          set /p VS_PATH=<vs_path.txt
-
-          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
-
-
-          mkdir out
-
 
           cd CPP\7zip\Bundles\Format7zF
           nmake /F makefile
 
+          cd ..\Fm
+          nmake /F makefile
+
+          cd ..\..\UI\Console
+          nmake /F makefile
+
+      - name: Collect artifacts
+        shell: cmd
+        run: |
+          mkdir out
+          copy CPP\7zip\Bundles\Format7zF\x64\7z.dll out\
+          copy CPP\7zip\Bundles\Fm\x64\7zFM.exe out\
+          copy CPP\7zip\UI\Console\x64\7z.exe out\
+          mkdir out\Lang
+          xcopy Lang out\Lang\ /E /I /Y >nul
+          if not exist out\7z.dll   (echo ERROR: 7z.dll was not built   & exit /b 1)
+          if not exist out\7zFM.exe (echo ERROR: 7zFM.exe was not built & exit /b 1)
+          if not exist out\7z.exe   (echo ERROR: 7z.exe was not built   & exit /b 1)
+          if not exist out\Lang\zh-cn.txt (echo ERROR: Lang pack was not copied & exit /b 1)
+
+      - name: Smoke test (list a plaintext romfs)
+        shell: cmd
+        run: |
+          out\7z.exe 2>&1 | findstr /C:"7-Zip"
+          echo Smoke test OK
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 7zip-ctr-build
+          name: 7zip-ctr-x64
           path: out/
+          retention-days: 14

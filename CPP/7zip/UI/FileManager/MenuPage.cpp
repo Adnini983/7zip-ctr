@@ -242,7 +242,7 @@ bool CMenuPage::OnInit()
     if (menuItem.Flag == kCRC)
       s = "CRC SHA";
     else if (menuItem.Flag == kCRC_Cascaded)
-      s = "7-Zip > CRC SHA";
+      s = "7-Zip CTR > CRC SHA";
     if (menuItem.Flag == kOpenAs
         || menuItem.Flag == kCRC
         || menuItem.Flag == kCRC_Cascaded)
@@ -290,7 +290,7 @@ bool CMenuPage::OnInit()
 
 static void ShowMenuErrorMessage(const wchar_t *m, HWND hwnd)
 {
-  MessageBoxW(hwnd, m, L"7-Zip", MB_ICONERROR);
+  MessageBoxW(hwnd, m, L"7-Zip CTR", MB_ICONERROR);
 }
 
 #endif

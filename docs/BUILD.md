@@ -15,8 +15,8 @@ src\7zip-26.04\
    CPP\7zip\Archive\N3dsHandler.cpp   # 3DS handler（唯一新增/改动文件）
 ```
 
-`N3dsHandler.cpp` 已通过 `REGISTER_ARC_I_NO_SIG("3DS", "3ds cta cia cxi cfa ncch", …)`
-注册为 7-Zip 内置 handler，随 `7z.dll` 一起编译。
+`N3dsHandler.cpp` 已通过 `REGISTER_ARC_I_NO_SIG("3DS", "3ds cci 3dz csu ncch cxi cfa app cia firm cnt bin romfs exefs tmd", …)`
+注册为 7-Zip 内置 handler，随 `7z.dll` 一起编译（Fm 版则静态内嵌同一份 handler）。
 
 ## 编译步骤
 
@@ -48,10 +48,20 @@ CPP\7zip\UI\Explorer\x64\7-zip.dll
 
 ## GitHub Actions 云编译
 
-仓库自带 `.github/workflows/build.yml`，push 到 `main` / `master` 或
-`workflow_dispatch` 时会在 **windows-latest** 上用 MSVC 编译上述全部目标，
-并把产物作为 build artifact 上传。CI 里同样会先删除 `x64\resource.res`
-以确保改名生效。
+仓库自带 `.github/workflows/build.yml`，push 到 `main` / `master`、提 PR 或
+`workflow_dispatch` 手动触发时，在 **windows-2022** 上用 MSVC（vswhere 定位
+vcvars64）依次编译：
+
+```
+CPP\7zip\Bundles\Format7zF  -> x64\7z.dll     （external codecs，动态加载）
+CPP\7zip\Bundles\Fm         -> x64\7zFM.exe  （N3DS handler 静态内嵌）
+CPP\7zip\UI\Console         -> x64\7z.exe      （命令行，依赖同目录 7z.dll）
+```
+
+三个产物收集进 `out\` 并做存在性校验后，连同仓库自带的 `Lang\` 语言包一起
+作为 build artifact 上传（CI 产物开箱即本地化）。
+`7zG.exe`（GUI）与 `7-zip.dll`（Explorer 外壳扩展）不在 CI 内编译，需要时按上面
+本地步骤补编。CI 产物不含密钥与 `seeddb.bin`（这些按“交付目录”一节另行放置）。
 
 ## 交付目录
 
@@ -64,7 +74,8 @@ build\
    3dskey\  3dskey_dev\   seeddb.bin
 ```
 
-`Lang\` 来自 7-Zip 官方语言包；`3dskey` / `seeddb` 见
+`Lang\` 直接取自仓库根目录（基于 7-Zip 官方语言包，已并入本项目的改名与
+“Adnini983 AI 创作”署名串）；`3dskey` / `seeddb` 见
 [docs/KEYS.md](KEYS.md) 与 [docs/EXTRACT_KEYS.md](EXTRACT_KEYS.md)。
 
 ## 自测

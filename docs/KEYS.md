@@ -53,13 +53,15 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 
 ## 4. 密钥来源与分类（重要）
 
-请严格区分哪些密钥**可以**上传到公开仓库、哪些**不可以**：
+本仓库**不附带任何密钥材料**；Release 包仅附带**已在公开研究材料中广泛流传、
+无争议的固定 AES 密钥**（common keydata）。其余密钥从已公开的 3DS 研究材料
+获取，或按 `gm9tools\` 从自己的实机提取。请严格区分：
 
-| 类别 | 内容 | 能否上传 GitHub |
+| 类别 | 内容 | Release 是否附带 |
 |---|---|---|
-| common keydata（所有机器相同） | slot0x2C..0x3F 的 KeyX/KeyY/KeyN，common0..5，nfc 等 | ✅ 可上传 |
-| 已泄露固定 key | slot0x03、0x18、0x1B、0x25 等（3dbrew 已公开） | ✅ 可上传 |
-| console-unique（OTP / movable.sed 派生） | slot0x04..0x2B 的 KeyX，movable.sed，OTP | ❌ 勿上传 |
+| common keydata（所有机器相同） | slot0x2C..0x3F 的 KeyX、common0..5 等 | ✅ 附带（已公开） |
+| 已泄露固定 key | slot0x03、0x18、0x1B、0x25 等（3dbrew 已公开） | ◐ 视分发策略 |
+| console-unique（OTP / movable.sed 派生） | slot0x04..0x2B 的 KeyX、movable.sed、OTP | ❌ 不附带 |
 
 判断依据见 3dbrew「AES key-init」：Boot9 把 keyslot 分为
 **console-unique keydata**（0x04..0x2B 的 keyX，每台机器由 OTP 派生）与
@@ -67,8 +69,8 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 
 > 说明：实际零售机上 console-unique 的 keyX 值在机器间碰巧相同
 > （任天堂出厂统一 conunique），这些值 3dbrew 也早已公开。
-> 但从分发安全角度，本 fork 仍建议只把 **common keydata + 已泄露固定 key**
-> 上传，机器特有条目（movable.sed、OTP、0x04..0x2B）留在本地。
+> 但从分发安全角度，本 fork 仍只把 **common keydata** 随 Release 附带，
+> 机器特有条目（movable.sed、OTP、0x04..0x2B）留在本地，不随任何公开分发。
 
 ## 5. 用工具自动分类与生成
 
@@ -77,8 +79,9 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 - `gm9tools\DumpKeysCTR.gm9` —— 在实机 GodMode9 运行，
   把 aeskeydb.bin（K: 盘）里的密钥按可上传 / 不可上传分成
   `pub\` 与 `priv\` 两个目录。
-- `gm9tools\aeskeys2ctr.py` —— 在电脑上把 GodMode9 的
+- `gm9tools\aeskeys2ctr.bat`（无需 Python，用系统自带 PowerShell）
+  或等价的 `gm9tools\aeskeys2ctr.py` —— 在电脑上把 GodMode9 的
   `aes_keys.txt` / `aeskeydb.bin` / 导出的 `slot0x*.bin`
-  转换成 `3dskey\` 与 `3dskey_dev\` 文本格式，并自动分类。
+  转换成 `3dskey\` 与 `3dskey_dev\` 文本格式，并自动分类；两者参数与输出一致。
 
 详见 [EXTRACT_KEYS.md](EXTRACT_KEYS.md)。

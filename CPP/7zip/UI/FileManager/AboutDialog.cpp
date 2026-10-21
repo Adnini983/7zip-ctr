@@ -17,7 +17,8 @@
 #ifdef Z7_LANG
 static const UInt32 kLangIDs[] =
 {
-  IDT_ABOUT_INFO
+  IDT_ABOUT_INFO,
+  IDT_ABOUT_AUTHOR
 };
 #endif
 

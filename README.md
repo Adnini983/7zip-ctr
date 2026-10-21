@@ -22,19 +22,23 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 ### ✅ 已实现
 
 - **容器识别与挂载**：`.3ds` `.cci` `.3dz` `.csu` `.ncch` `.cxi` `.cfa`
-  `.cia` `.app` `.firm` `.cnt` `.bin` `.romfs` `.exefs`
+  `.cia` `.app` `.firm` `.cnt` `.bin` `.romfs` `.exefs` `.tmd`
 - **NCSD**（`.3ds` / `.cci` / `.3dz` / `.csu`）：解析分区表，定位各分区 NCCH
 - **NCCH**（`.cxi` / `.cfa` / `.ncch`）：展开 ExeFS 与 RomFS
   - ExeFS：`.code` `banner` `icon` `logo` `resources\…`
   - RomFS：完整目录树（含子目录、长文件名 UTF-16BE）
+- **独立明文段直开**：单独抽出的明文 `exefs.bin` / `romfs.bin`（或 `.exefs` /
+  `.romfs`）可直接打开浏览抽取，**不需要任何密钥或配套头文件**
 - **CIA**：`cert` `ticket` `tmd` `Content_*.cxi` `meta` 完整展开
   - 从 ticket 用 common key 解密 **title key**
   - 加密 content 用 title key 做 **AES-CBC** 解密读取
 - **NCCH 数据区 AES-CTR 解密**：`slot0x2C` / `slot0x18` / `0x1B` / `0x25`
   + keyscrambler（3DS 硬件密钥生成器，大端字节序）
 - **Seed 加密 RomFS**：读取 `seeddb.bin`（SeedInfo 格式）派生 seed keyY
-- **Contents.cnt 展开**：正确读取 256 项 CupList，按 16 位补零 title id
-  展开为独立 `.cia`（修复了运行时头部越界导致的错误展开）
+- **Contents.cnt / SNAKE update**：CSU 内嵌与单独抽出的 `Contents.cnt` 均可识别；
+  展开得到的 `.cia` 收进专用 `Contents/` 子目录，两种场景都按 16 位补零
+  `<titleid>.cia` 命名（独立抽出时从 ticket 段 ticket+0x1DC 读明文 title id，
+  不依赖兄弟 CupList）；修复了运行时头部越界导致的错误展开。
 - **密钥外置**（零硬编码）：
   - `3dskey\`（零售机）
   - `3dskey_dev\`（开发机）
@@ -47,6 +51,12 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 
 - **密钥必须外置**：程序启动时若缺少 `3dskey\` / `3dskey_dev\` 或对应密钥，
   加密内容无法解密（这是设计，见 [密钥](docs/KEYS.md)）。
+- **CDN 散 content / TMD（元数据浏览）**：可打开 NUS 直抓的 `tmd.<n>`，解析并
+  列出 title id、版本、content 数量与各 content 大小/索引（`Contents/` 目录）。
+  CDN content 外层为 TitleKey-AES-CBC，**必须配合 ticket（`.tik`/`.cetk`）才能解密**；
+  仅有 TMD 时只做元数据展示，密文不解密（ticket 自动解密位已预留）。
+- **DSiWare（TWL SRL / `.nds`）未实现**：00048xxx 标题走 DSi 固定密钥与独立
+  SRL 格式，不在本版范围。
 - 个别异常 header 的 ROM 可能无法解密，属样本本身问题。
 - GM9 密钥提取脚本（`gm9tools\DumpKeysCTR.gm9`）需在实机上运行，无实机无法在此验证。
 
@@ -74,6 +84,7 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 ```
 .
 ├── CPP/7zip/Archive/N3dsHandler.cpp   # 3DS 容器 archive handler（本项目核心）
+├── Lang/                              # 多语言包（基于官方语言包，已并入改名/署名串）
 ├── docs/                              # 使用、密钥、提取、构建文档
 ├── gm9tools/                          # GM9 实机密钥提取脚本与转换工具
 ├── .github/workflows/build.yml        # GitHub Actions 云编译
@@ -95,11 +106,31 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 | [redbooth/free-file-icons](https://github.com/redbooth/free-file-icons) | 图标模板资源（已并入 `Archive\Icons`） | MIT |
 | [toiry921/CupTheCnt](https://github.com/toiry921/CupTheCnt) | Contents.cnt 格式的**参考**（该仓库无开源协议，仅作格式参考，未引用其代码） | 无协议 |
 
-**密钥合规说明**：本仓库**可上传的公共密钥（common keydata 等）随源码分发**
-（见 `3dskey\` 中标记为可上传的部分）；**不可上传的密钥**（各机器唯一的
-`movable.sed`、OTP、console-unique 等）**不随仓库分发**，必须由用户从自己的
-实机提取（见 [docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md) 与
-[gm9tools](gm9tools/)）。
+**密钥合规说明**：本仓库**不附带任何密钥材料**。解密所需的 AES 密钥可从
+**已公开的 3DS 研究材料**中获得（例如公开流传的 keydata 集合），或由用户
+从自己的实机提取（见 [docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md) 与
+[gm9tools](gm9tools/)）。各机器唯一、且不宜公开分发的密钥（`movable.sed`、
+OTP、console-unique 等）**不会随仓库或 Release 分发**，必须由用户自行提取。
+Release 包仅附带已在公开研究材料中广泛流传、无争议的固定 AES 密钥。
+
+---
+
+## 从源码编译
+
+本项目在 Windows x64 上使用 7-Zip 自带的 makefile 构建（Visual Studio Build
+Tools，无需改动即可编译出 `7z.dll` / `7z.exe` / `7zFM.exe` 等）。完整步骤、
+工具链版本与常见问题见 **[docs/BUILD.md](docs/BUILD.md)**。
+
+关键点：
+
+1. 安装 **Visual Studio 2022 Build Tools**（含 C++ 工具集与 x64 编译环境）。
+2. 在仓库根目录按 `docs/BUILD.md` 调用 `makefile` 构建 x64 目标。
+3. 编译产物在对应 `x64\` 目录；安装器（`C\Util\7zipInstall`）与卸载器
+   （`C\Util\7zipUninstall`）也可一并编译。
+4. 运行前把密钥放入 `7z.dll` 同目录（见上文“密钥合规说明”与 `docs/KEYS.md`）。
+
+仓库内已配置 **[GitHub Actions](.github/workflows/build.yml)**，推到 GitHub
+即可自动云编译并产出构建产物。
 
 ---
 
@@ -130,6 +161,9 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 
 - 图标资源：
   基于 `redbooth/free-file-icons` 的 MIT 许可资源修改。
+- 多语言包 `Lang/`：
+  基于 7-Zip 官方语言包（版权归 Igor Pavlov 与各语种译者，随 7-Zip LGPL 分发），
+  本项目在其上并入了软件改名与“Adnini983 AI 创作”署名串，未改动其余译文。
 - 其他第三方参考项目：
   请见“参考仓库与资源”章节。
 
