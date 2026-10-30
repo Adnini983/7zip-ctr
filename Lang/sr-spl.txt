@@ -202,6 +202,8 @@ Prikaži linije mreže
 Jedan klik za otvaranje stavke
 Alternativni način za biranje
 Koristi velike memorijske blokove
+2600
+Keystone
 2900
 O programu
 7-Zip CTR je besplatan program.
@@ -404,4 +406,16 @@ Rejting/Upotreba
 Prolazi:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Fascikla AES ključeva Retail 3DS
+15002
+Fascikla AES ključeva Devkit 3DS
+15003
+Vrati na podrazumevano
+15004
+Otvori fasciklu
+15005
+Izaberi fasciklu AES ključeva Retail 3DS
+15006
+Izaberi fasciklu AES ključeva Devkit 3DS

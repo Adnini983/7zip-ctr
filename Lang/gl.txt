@@ -244,6 +244,8 @@ Amosar liñas de &grella
 Clic simple para abrir un elemento
 Modo de selección &alternativo
 Usar memoria &longa de páxinas
+2600
+Keystone
 2900
 Acerca do 7-Zip CTR
 7-Zip CTR é un programa gratuíto
@@ -514,4 +516,16 @@ Directorio ligazón simbólica
 Directorio nexo
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Cartafolio de chaves AES do 3DS Retail
+15002
+Cartafolio de chaves AES do 3DS Devkit
+15003
+Restablecer os valores predeterminados
+15004
+Abrir cartafolio
+15005
+Seleccionar o cartafolio de chaves AES do 3DS Retail
+15006
+Seleccionar o cartafolio de chaves AES do 3DS Devkit

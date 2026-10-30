@@ -239,6 +239,8 @@ Erakutsi &saretxo lerroak
 &Klik-bakarra gai bat irekitzeko
 A&ukerazko hautapen modua
 Erabili &oroimen handiko orrialdeak
+2600
+Keystone
 2900
 7-Zip CTR buruz
 7-Zip CTR software askea da
@@ -495,4 +497,16 @@ Zuzenbide Lotura Sinbolikoa
 Zuzenbide Elkargunea
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES giltzen karpeta
+15002
+Devkit 3DS AES giltzen karpeta
+15003
+Lehenetsitako balioetara berrezarri
+15004
+Ireki karpeta
+15005
+Aukeratu Retail 3DS AES giltzen karpeta
+15006
+Aukeratu Devkit 3DS AES giltzen karpeta

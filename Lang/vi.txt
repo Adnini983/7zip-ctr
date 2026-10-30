@@ -202,6 +202,8 @@ Hiển thị lưới
 Nhắp chuột để mở
 Chế độ chọn luân phiên
 Sử dụng bộ nhớ lớn
+2600
+Keystone
 2900
 Về 7-Zip CTR
 7-Zip CTR là một phần mềm miễn phí.
@@ -404,4 +406,16 @@ Tốc độ / Mức dùng
 Đã qua:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Thư mục khóa AES Retail 3DS
+15002
+Thư mục khóa AES Devkit 3DS
+15003
+Đặt lại về mặc định
+15004
+Mở thư mục
+15005
+Chọn thư mục khóa AES Retail 3DS
+15006
+Chọn thư mục khóa AES Devkit 3DS

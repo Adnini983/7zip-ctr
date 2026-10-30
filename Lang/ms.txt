@@ -202,6 +202,8 @@ Perlihatkan garisan grid
 
 &Mod Pilihan Alternatif
 Gunakan muka surat memori yang &besar
+2600
+Keystone
 2900
 Perihal 7-Zip CTR
 7-Zip CTR adalah perisian percuma.
@@ -404,4 +406,16 @@ Keputusan
 Lulus:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Folder kunci AES Retail 3DS
+15002
+Folder kunci AES Devkit 3DS
+15003
+Tetap semula ke lalai
+15004
+Buka folder
+15005
+Pilih folder kunci AES Retail 3DS
+15006
+Pilih folder kunci AES Devkit 3DS

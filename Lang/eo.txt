@@ -202,6 +202,8 @@ Montru &kradliniojn
 
 &Alternativa markreĝimo
 Uzu &grandajn memorpaĝojn
+2600
+Keystone
 2900
 Informo
 7-Zip CTR estas senpaga programo.
@@ -404,4 +406,16 @@ Rezulta
 Pasoj:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Dosiero de AES-ŝlosiloj Retail 3DS
+15002
+Dosiero de AES-ŝlosiloj Devkit 3DS
+15003
+Riprenormigi
+15004
+Malfermi dosieron
+15005
+Elekti dosieron de AES-ŝlosiloj Retail 3DS
+15006
+Elekti dosieron de AES-ŝlosiloj Devkit 3DS

@@ -244,6 +244,8 @@ Näytä &ruudukko
 Avaa &kertanapsautuksella
 Vaihtoehtoinen valintojen &esitystapa
 Käytä &suuria muistisivuja
+2600
+Keystone
 2900
 Tietoja
 7-Zip CTR on vapaa ohjelmisto.
@@ -514,4 +516,16 @@ Symbolinen kansiolinkki
 Kansioliitos
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES-avainkansio
+15002
+Devkit 3DS AES-avainkansio
+15003
+Palauta oletukset
+15004
+Avaa kansio
+15005
+Valitse Retail 3DS AES-avainkansio
+15006
+Valitse Devkit 3DS AES-avainkansio

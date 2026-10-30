@@ -246,6 +246,8 @@ Dateiauswahl markiert ganze &Zeile
 Einfacher &Klick zum Öffnen
 &Alternativer Dateiauswahl-Modus
 Große &Speicherseiten verwenden
+2600
+Keystone
 2900
 Info über 7-Zip CTR
 7-Zip CTR ist freie Software.
@@ -533,4 +535,16 @@ Archiventpackung ü&berspringen
 Archiventpackung wurde übersprungen.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Ordner für Retail-3DS-AES-Schlüssel
+15002
+Ordner für Devkit-3DS-AES-Schlüssel
+15003
+Auf Standardwerte zurücksetzen
+15004
+Ordner öffnen
+15005
+Retail-3DS-AES-Schlüsselordner auswählen
+15006
+Devkit-3DS-AES-Schlüsselordner auswählen

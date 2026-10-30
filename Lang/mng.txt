@@ -202,6 +202,8 @@ ID
 ᠲᠣᠪᠴᠢᠳᠠᠭᠠᠳ ᠨᠡᠭᠡᠭᠡᠬᠦ
 7-Zip ᠤᠯᠠᠮᠵᠢᠯᠠᠯᠲᠤ ᠬᠡᠪ  ᠢ ᠰᠣᠩᠭᠣᠬᠤ (&A)
 ᠶᠡᠬᠡ ᠷᠠᠮ  ᠤᠨ ᠨᠢᠭᠤᠷ  ᠢ ᠬᠡᠷᠡᠭᠯᠡᠬᠦ (&L)
+2600
+Keystone
 2900
 7-Zip CTR  ᠶᠢᠨ ᠲᠤᠬᠠᠢ
 7-Zip CTR ᠪᠣᠯ ᠲᠥᠯᠥᠪᠦᠷᠢ ᠦᠭᠡᠢ ᠰᠣᠹᠲ ᠂
@@ -404,4 +406,16 @@ CPUᠬᠡᠷᠡᠭᠯᠡᠭᠰᠡᠨ ᠬᠡᠮᠵᠢᠶ᠎ᠡ
 ᠪᠠᠲᠤᠯᠠᠭᠳᠠᠭᠰᠠᠨ ᠡ ᠄
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

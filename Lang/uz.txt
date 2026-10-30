@@ -239,6 +239,8 @@ Tizim menyusini ko‘rsatmoq
 Elementni bir marta bosib ochmoq
 &Muqobil tanlash uslubidan foydalanmoq
 &Katta hajmli xotiradan foydalanmoq
+2600
+Keystone
 2900
 7-Zip CTR dasturi haqida
 7-Zip CTR bepul dasturiy ta’minot hisoblanadi.
@@ -495,4 +497,16 @@ Ramziy havola jildi
 Bog‘lanish nuqtasi
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES kalitlari papkasi
+15002
+Devkit 3DS AES kalitlari papkasi
+15003
+Standartga qaytarish
+15004
+Papkani ochish
+15005
+Retail 3DS AES kalitlari papkasini tanlash
+15006
+Devkit 3DS AES kalitlari papkasini tanlash

@@ -246,6 +246,8 @@ Zaznaczaj &cały rząd
 Pojedyncze kliknięcie otwiera element
 &Alternatywny tryb zaznaczania
 &Użyj dużych stron pamięci
+2600
+Keystone
 2900
 7-Zip CTR - informacje
 7-Zip CTR jest programem darmowym.
@@ -533,4 +535,16 @@ Maksymalna ilość pamięci RAM dozwolona do rozpakowywania archiwów:
 Rozpakowywanie archiwum zostało pominięte.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Folder kluczy AES Retail 3DS
+15002
+Folder kluczy AES Devkit 3DS
+15003
+Przywróć domyślne
+15004
+Otwórz folder
+15005
+Wybierz folder kluczy AES Retail 3DS
+15006
+Wybierz folder kluczy AES Devkit 3DS

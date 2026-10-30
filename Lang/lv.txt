@@ -202,6 +202,8 @@ Parādīt at&dalošās līnijas
 
 
 
+2600
+Keystone
 2900
 Par 7-Zip CTR
 7-Zip CTR ir bezmaksas programma.
@@ -404,4 +406,16 @@ Rezultējošais
 Izdošanās:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES atslēgu mape
+15002
+Devkit 3DS AES atslēgu mape
+15003
+Atiestatīt uz noklusējumu
+15004
+Atvērt mapi
+15005
+Izvēlieties Retail 3DS AES atslēgu mapi
+15006
+Izvēlieties Devkit 3DS AES atslēgu mapi

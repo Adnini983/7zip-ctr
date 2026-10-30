@@ -25,6 +25,7 @@ FM_OBJS = \
   $O\FSFolder.obj \
   $O\FSFolderCopy.obj \
   $O\HelpUtils.obj \
+  $O\KeystonePage.obj \
   $O\LangUtils.obj \
   $O\MemDialog.obj \
   $O\MenuPage.obj \

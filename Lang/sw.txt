@@ -239,6 +239,8 @@ Onyesha &mistari mraba
 Bofya mara moja kufungua kipengee
 &Mtindo mbadala wa uteuzi
 Tumia kurasa &kubwa za kumbukumbu
+2600
+Keystone
 2900
 Kuhusu 7-Zip CTR
 7-Zip CTR ni programu huria
@@ -495,4 +497,16 @@ Folda kiungo kiishara
 Makutano ya saraka
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Folda ya funguo za AES Retail 3DS
+15002
+Folda ya funguo za AES Devkit 3DS
+15003
+Weka upya chaguomsingi
+15004
+Fungua folda
+15005
+Chagua folda ya funguo za AES Retail 3DS
+15006
+Chagua folda ya funguo za AES Devkit 3DS

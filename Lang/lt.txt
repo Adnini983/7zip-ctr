@@ -246,6 +246,8 @@ Rodyti tinklelio linija&s
 Atverti elementus vienu spustelėjimu
 &Kitoks žymėjimo būdas
 Naudoti didžiu&lius atminties puslapius
+2600
+Keystone
 2900
 Apie „7-Zip CTR“
 „7-Zip CTR“ yra nemokama programa.
@@ -533,4 +535,16 @@ Pralei&sti archyvo išpakavimą
 Archyvo išpakavimas buvo praleistas.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES raktų aplankas
+15002
+Devkit 3DS AES raktų aplankas
+15003
+Atstatyti į numatytąsias
+15004
+Atverti aplanką
+15005
+Pasirinkite Retail 3DS AES raktų aplanką
+15006
+Pasirinkite Devkit 3DS AES raktų aplanką

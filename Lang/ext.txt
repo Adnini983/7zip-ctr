@@ -202,6 +202,8 @@ Muestral línias e la &cuairícula
 'Click' únicu p'abril un elementu
 Móu e seleción &alternativu
 Usa&l páhinas de memoria grandis
+2600
+Keystone
 2900
 About 7-Zip CTR
 7-Zip CTR es una apricación libri i a gastus pagus.
@@ -404,4 +406,16 @@ Razón / Usu
 Pasis:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

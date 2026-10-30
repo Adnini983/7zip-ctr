@@ -239,6 +239,8 @@ Sýna kerfisvalmynd
 Einsmella til að opna atriði
 &Annars konar valhamur
 &Nota stórar minnissíður
+2600
+Keystone
 2900
 Um 7-Zip CTR
 7-Zip CTR er frjáls hugbúnaður
@@ -495,4 +497,16 @@ Skráasafnsmjúktengill
 Skráasafnstenging
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES-lyklamappa
+15002
+Devkit 3DS AES-lyklamappa
+15003
+Endursetja á sjálfgefið
+15004
+Opna möppu
+15005
+Velja Retail 3DS AES-lyklamöppu
+15006
+Velja Devkit 3DS AES-lyklamöppu

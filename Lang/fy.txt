@@ -202,6 +202,8 @@ Systeemmenu sjen litte
 
 &Alternative seleksje modus
 Brûk &grut ûnthâld siden
+2600
+Keystone
 2900
 7-Zip CTR it hoe en het
 7-Zip CTR is fergees.
@@ -404,4 +406,16 @@ Beoardieling / Brûkens
 Kear foarbei:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Map mei Retail-3DS-AES-kaaien
+15002
+Map mei Devkit-3DS-AES-kaaien
+15003
+Weromsette nei standert
+15004
+Map iepenje
+15005
+Selektearje de map mei Retail-3DS-AES-kaaien
+15006
+Selektearje de map mei Devkit-3DS-AES-kaaien

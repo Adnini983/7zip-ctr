@@ -246,6 +246,8 @@ Mostra les línies de &graella
 Obre amb un sol clic els elements
 Mode de selecció &alternatiu
 Utilitza pàgines de memòria &grans
+2600
+Keystone
 2900
 Quant al 7-Zip CTR
 El 7-Zip CTR és programari lliure.
@@ -533,4 +535,16 @@ Permet desempaquetar l'&arxiu
 S'ha ignorat la descompressió dels arxius.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Carpeta de claus AES del 3DS Retail
+15002
+Carpeta de claus AES del 3DS Devkit
+15003
+Restableix als valors per defecte
+15004
+Obre la carpeta
+15005
+Selecciona la carpeta de claus AES del 3DS Retail
+15006
+Selecciona la carpeta de claus AES del 3DS Devkit

@@ -239,6 +239,8 @@ Vis &gitter
 Åbn element med ét klik
 &Alternativ markeringsmetode
 Brug &store hukommelsessider
+2600
+Keystone
 2900
 Om 7-Zip CTR
 7-Zip CTR er fri software
@@ -495,4 +497,16 @@ Mappe symbolsk henvisning
 Mappe forbindelsespunkt
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Mappe med Retail-3DS-AES-nøgler
+15002
+Mappe med Devkit-3DS-AES-nøgler
+15003
+Nulstil til standard
+15004
+Åbn mappe
+15005
+Vælg mappe med Retail-3DS-AES-nøgler
+15006
+Vælg mappe med Devkit-3DS-AES-nøgler

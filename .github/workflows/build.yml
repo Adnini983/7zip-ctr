@@ -50,6 +50,7 @@ jobs:
           copy CPP\7zip\UI\Console\x64\7z.exe out\
           mkdir out\Lang
           xcopy Lang out\Lang\ /E /I /Y >nul
+          copy keystone.ini out\ >nul
           if not exist out\7z.dll   (echo ERROR: 7z.dll was not built   & exit /b 1)
           if not exist out\7zFM.exe (echo ERROR: 7zFM.exe was not built & exit /b 1)
           if not exist out\7z.exe   (echo ERROR: 7z.exe was not built   & exit /b 1)

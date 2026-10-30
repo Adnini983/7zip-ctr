@@ -202,6 +202,8 @@ Shfaq &vijat e rrjetit
 
 Mënyrë alternative &selektimi
 Përdor &faqe të mëdha të memories
+2600
+Keystone
 2900
 Për 7-Zip CTR
 7-Zip CTR është softuer falas.
@@ -404,4 +406,16 @@ Rezultati
 Kalime:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Dosja e çelësave AES Retail 3DS
+15002
+Dosja e çelësave AES Devkit 3DS
+15003
+Rivendos në parazgjedhje
+15004
+Hap dosjen
+15005
+Zgjidh dosjen e çelësave AES Retail 3DS
+15006
+Zgjidh dosjen e çelësave AES Devkit 3DS

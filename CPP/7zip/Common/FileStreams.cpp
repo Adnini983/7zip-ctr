@@ -531,6 +531,11 @@ Z7_COM7F_IMF(CInFileStream::GetProperty(PROPID propID, PROPVARIANT *value))
             Get_PosixMode_From_WinAttrib(_info.dwFileAttributes);
             // | (UInt32)(1 << 21); // for debug
         break;
+      // 7-Zip CTR: full path this stream was opened from (NAND device-material lookup)
+      case kpidZ7CtrSourcePath:
+        if (!FullPath.IsEmpty())
+          prop = FullPath;
+        break;
     }
   }
   prop.Detach(value);

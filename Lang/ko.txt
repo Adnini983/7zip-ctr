@@ -246,6 +246,8 @@ Is Tree
 한 번 클릭으로 항목 열기
 대체 선택 모드(&A)
 큰 메모리 페이지 사용
+2600
+Keystone
 2900
 7-Zip CTR 정보
 7-Zip CTR 은 무료 소프트웨어입니다.
@@ -533,4 +535,16 @@ CPU 사용량
 아카이브 압축 풀기를 건너뛰었습니다.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES 키 폴더
+15002
+Devkit 3DS AES 키 폴더
+15003
+기본값으로 재설정
+15004
+폴더 열기
+15005
+Retail 3DS AES 키 폴더 선택
+15006
+Devkit 3DS AES 키 폴더 선택

@@ -246,6 +246,8 @@ Rasterlijnen weer&geven
 Enkele klik om een item te openen
 &Alternatieve selectiemodus
 &Gebruik grote geheugenpagina's
+2600
+Keystone
 2900
 Over 7-Zip CTR
 7-Zip CTR is gratis software
@@ -533,4 +535,16 @@ Maximale hoeveelheid RAM geheugen toegestaan voor het uitpakken van archieven:
 Uitapkken van het archief is overgeslagen.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Map met Retail-3DS-AES-sleutels
+15002
+Map met Devkit-3DS-AES-sleutels
+15003
+Standaardwaarden herstellen
+15004
+Map openen
+15005
+Selecteer de map met Retail-3DS-AES-sleutels
+15006
+Selecteer de map met Devkit-3DS-AES-sleutels

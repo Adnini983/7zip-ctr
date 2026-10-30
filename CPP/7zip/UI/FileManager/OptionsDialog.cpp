@@ -11,6 +11,8 @@
 #include "EditPageRes.h"
 #include "FoldersPage.h"
 #include "FoldersPageRes.h"
+#include "KeystonePage.h"
+#include "KeystonePageRes.h"
 #include "LangPage.h"
 #include "LangPageRes.h"
 #include "MenuPage.h"
@@ -37,6 +39,7 @@ void OptionsDialog(HWND hwndOwner, HINSTANCE /* hInstance */)
   CEditPage editPage;
   CSettingsPage settingsPage;
   CLangPage langPage;
+  CKeystonePage keystonePage;
 
   CObjectVector<NControl::CPageInfo> pages;
   BIG_DIALOG_SIZE(200, 200);
@@ -47,9 +50,10 @@ void OptionsDialog(HWND hwndOwner, HINSTANCE /* hInstance */)
       SIZED_DIALOG(IDD_FOLDERS),
       SIZED_DIALOG(IDD_EDIT),
       SIZED_DIALOG(IDD_SETTINGS),
-      SIZED_DIALOG(IDD_LANG) };
+      SIZED_DIALOG(IDD_LANG),
+      SIZED_DIALOG(IDD_KEYSTONE) };
 
-  NControl::CPropertyPage *pagePointers[] = { &systemPage,  &menuPage, &foldersPage, &editPage, &settingsPage, &langPage };
+  NControl::CPropertyPage *pagePointers[] = { &systemPage,  &menuPage, &foldersPage, &editPage, &settingsPage, &langPage, &keystonePage };
   
   for (unsigned i = 0; i < Z7_ARRAY_SIZE(pageIDs); i++)
   {

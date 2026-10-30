@@ -246,6 +246,8 @@ Sistem menüsünü göster
 Ögeleri açmak için tek tık kullan
 &Diğer seçim kipi
 Büyük &bellek sayfaları kullan
+2600
+Keystone
 2900
 7-Zip CTR Hakkında
 7-Zip CTR özgür ve ücretsiz bir uygulamadır.
@@ -533,4 +535,16 @@ Arşiv açmayı &atla
 Arşiv açma atlandı.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES anahtar klasörü
+15002
+Devkit 3DS AES anahtar klasörü
+15003
+Varsayılana sıfırla
+15004
+Klasörü aç
+15005
+Retail 3DS AES anahtar klasörünü seç
+15006
+Devkit 3DS AES anahtar klasörünü seç

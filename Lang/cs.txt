@@ -246,6 +246,8 @@ Zobrazovat &mřížku
 Otevřít položku jedním kliknutím
 &Alternativní způsob výběru
 &Používat velké stránky paměti
+2600
+Keystone
 2900
 O programu 7-Zip CTR
 7-Zip CTR je svobodný software
@@ -533,4 +535,16 @@ Přerušit rozbalování archivů
 Rozbalování archivu bylo přeskočeno.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Složka klíčů AES Retail 3DS
+15002
+Složka klíčů AES Devkit 3DS
+15003
+Obnovit výchozí
+15004
+Otevřít složku
+15005
+Vybrat složku klíčů AES Retail 3DS
+15006
+Vybrat složku klíčů AES Devkit 3DS

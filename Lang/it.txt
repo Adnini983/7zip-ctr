@@ -246,6 +246,8 @@ Mostra &griglia
 Click singolo per aprire un elemento
 Modalità di selezione &alternativa
 Utilizza pagine &larghe di memoria
+2600
+Keystone
 2900
 Informazioni su 7-Zip CTR
 7-Zip CTR è un software libero.
@@ -533,4 +535,16 @@ Consenti la decompressione dell'&archivio
 La decompressione dell'archivio è stata saltata.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Cartella chiavi AES 3DS Retail
+15002
+Cartella chiavi AES 3DS Devkit
+15003
+Ripristina predefiniti
+15004
+Apri cartella
+15005
+Seleziona la cartella delle chiavi AES 3DS Retail
+15006
+Seleziona la cartella delle chiavi AES 3DS Devkit

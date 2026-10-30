@@ -202,6 +202,8 @@ Dangos llinellau &grid
 
 Modd dethol &arallddewisiol
 Defnyddiwch tudalenau cof &mawr
+2600
+Keystone
 2900
 Manylion 7-Zip CTR
 Mae 7-Zip CTR yn meddalwedd am ddim.
@@ -404,4 +406,16 @@ Canlyniad
 Pasio:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Ffolder allweddi AES Retail 3DS
+15002
+Ffolder allweddi AES Devkit 3DS
+15003
+Ailosod i'r rhagosodiadau
+15004
+Agor ffolder
+15005
+Dewiswch ffolder allweddi AES Retail 3DS
+15006
+Dewiswch ffolder allweddi AES Devkit 3DS

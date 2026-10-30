@@ -244,6 +244,8 @@ Prikaži &mrežne črte
 En klik za odpiranje vnosa
 Na&domestni način izbire
 Uporabi &velike pomnilniške strani
+2600
+Keystone
 2900
 Vizitka
 7-Zip CTR je brezplačen program
@@ -514,4 +516,16 @@ Mapa simbolnih povezav
 Združevanje map
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Mapa ključev AES Retail 3DS
+15002
+Mapa ključev AES Devkit 3DS
+15003
+Ponastavi na privzeto
+15004
+Odpri mapo
+15005
+Izberite mapo ključev AES Retail 3DS
+15006
+Izberite mapo ključev AES Devkit 3DS

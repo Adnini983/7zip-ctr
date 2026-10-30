@@ -202,6 +202,8 @@ Kuva &ruudujooned
 Ava üksus ühe klõpsuga
 &Alternatiivne valikurežiim
 Kasuta &suuri mälulehekülgi
+2600
+Keystone
 2900
 Teave 7-Zip CTRi kohta
 7-Zip CTR on vaba tarkvara.
@@ -404,4 +406,16 @@ Hinnang/hõivatus
 Töötiire:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES-võtmete kaust
+15002
+Devkit 3DS AES-võtmete kaust
+15003
+Lähtesta vaikeväärtustele
+15004
+Ava kaust
+15005
+Vali Retail 3DS AES-võtmete kaust
+15006
+Vali Devkit 3DS AES-võtmete kaust

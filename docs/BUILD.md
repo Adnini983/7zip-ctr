@@ -77,11 +77,13 @@ CPP\7zip\UI\Console         -> x64\7z.exe      （命令行，依赖同目录 7z
 build\
    7z.exe  7zFM.exe  7z.dll  7zG.exe  7z.sfx  …
    Lang\              多语言（zh-cn/zh-tw 等）
-   3dskey\  3dskey_dev\   seeddb.bin
+   keystone\ctraes_retail\  keystone\ctraes_dev\   seeddb.bin
+   keystone.ini       （仓库根自带模板，随交付目录一起复制；键名
+                       RetailCTRAESKeyDir=/DevCTRAESKeyDir=，留空=默认）
 ```
 
 `Lang\` 直接取自仓库根目录（基于 7-Zip 官方语言包，已并入本项目的改名与
-“Adnini983 AI 创作”署名串）；`3dskey` / `seeddb` 见
+“Adnini983 AI 创作”署名串）；`keystone` / `seeddb` 见
 [docs/KEYS.md](KEYS.md) 与 [docs/EXTRACT_KEYS.md](EXTRACT_KEYS.md)。
 
 ## 自测
