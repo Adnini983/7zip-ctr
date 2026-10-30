@@ -30,6 +30,7 @@ CKeystonePage::CKeystonePage() :
     m_DefaultRetail(),
     m_DefaultDev(),
     m_DefaultDevice(),
+    m_DefaultFirm(),
     _needSave(false),
     _initMode(true)
 {
@@ -124,6 +125,7 @@ void CKeystonePage::ResetDefaults()
   m_RetailPath.SetText(m_DefaultRetail);
   m_DevPath.SetText(m_DefaultDev);
   m_DevicePath.SetText(m_DefaultDevice);
+  m_FirmPath.SetText(m_DefaultFirm);
   ModifiedEvent();
 }
 
@@ -137,11 +139,13 @@ bool CKeystonePage::OnInit()
   m_DefaultRetail = exeDir + UString(L"\\keystone\\ctraes_retail");
   m_DefaultDev    = exeDir + UString(L"\\keystone\\ctraes_dev");
   m_DefaultDevice = exeDir + UString(L"\\keystone\\ctrdevice");
+  m_DefaultFirm   = exeDir + UString(L"\\keystone\\pubkey");
 
   #ifdef Z7_LANG
   LangSetDlgItemText(*this, IDT_KEYSTONE_RETAIL_LABEL, IDT_KEYSTONE_RETAIL_LABEL);
   LangSetDlgItemText(*this, IDT_KEYSTONE_DEV_LABEL, IDT_KEYSTONE_DEV_LABEL);
   LangSetDlgItemText(*this, IDT_KEYSTONE_DEVICE_LABEL, IDT_KEYSTONE_DEVICE_LABEL);
+  LangSetDlgItemText(*this, IDT_KEYSTONE_FIRM_LABEL, IDT_KEYSTONE_FIRM_LABEL);
   LangSetDlgItemText(*this, IDT_KEYSTONE_RESET, IDT_KEYSTONE_RESET);
   LangSetDlgItemText(*this, IDB_KEY_REBUILD_CACHE, IDT_KEYSTONE_REBUILD_CACHE);
   #endif
@@ -149,17 +153,21 @@ bool CKeystonePage::OnInit()
   SetFolderIcon(*this, IDB_KEY_RETAIL_OPEN, exeDir);
   SetFolderIcon(*this, IDB_KEY_DEV_OPEN, exeDir);
   SetFolderIcon(*this, IDB_KEY_DEVICE_OPEN, exeDir);
+  SetFolderIcon(*this, IDB_KEY_FIRM_OPEN, exeDir);
 
   m_RetailPath.Init(*this, IDE_KEY_RETAIL_PATH);
   m_DevPath.Init(*this, IDE_KEY_DEV_PATH);
   m_DevicePath.Init(*this, IDE_KEY_DEVICE_PATH);
+  m_FirmPath.Init(*this, IDE_KEY_FIRM_PATH);
 
   UString r = ReadIni(L"RetailCTRAESKeyDir");
   UString d = ReadIni(L"DevCTRAESKeyDir");
   UString dv = ReadIni(L"DeviceDataDir");
+  UString fp = ReadIni(L"FirmPubKeyDir");
   m_RetailPath.SetText(r.IsEmpty() ? m_DefaultRetail : r);
   m_DevPath.SetText(d.IsEmpty() ? m_DefaultDev : d);
   m_DevicePath.SetText(dv.IsEmpty() ? m_DefaultDevice : dv);
+  m_FirmPath.SetText(fp.IsEmpty() ? m_DefaultFirm : fp);
 
   _initMode = false;
   return CPropertyPage::OnInit();
@@ -174,7 +182,7 @@ bool CKeystonePage::OnCommand(unsigned code, unsigned itemID, LPARAM lParam)
 {
   if (code == EN_CHANGE &&
       (itemID == IDE_KEY_RETAIL_PATH || itemID == IDE_KEY_DEV_PATH ||
-       itemID == IDE_KEY_DEVICE_PATH))
+       itemID == IDE_KEY_DEVICE_PATH || itemID == IDE_KEY_FIRM_PATH))
   {
     ModifiedEvent();
     return true;
@@ -204,6 +212,12 @@ bool CKeystonePage::OnButtonClicked(unsigned buttonID, HWND buttonHWND)
     case IDB_KEY_DEVICE_OPEN:
       OpenFolder(m_DevicePath, m_DefaultDevice);
       return true;
+    case IDB_KEY_FIRM_BROWSE:
+      BrowsePath(m_FirmPath, LangString(IDT_KEYSTONE_BROWSE_FIRM));
+      return true;
+    case IDB_KEY_FIRM_OPEN:
+      OpenFolder(m_FirmPath, m_DefaultFirm);
+      return true;
     case IDB_KEY_REBUILD_CACHE:
       // Force the key table and ctrdevice scan to re-read from disk on next access.
       Z7CtrInvalidateKeystoneCache();
@@ -219,14 +233,16 @@ LONG CKeystonePage::OnApply()
 {
   if (_needSave)
   {
-    UString r, d, dv;
+    UString r, d, dv, fp;
     m_RetailPath.GetText(r);
     m_DevPath.GetText(d);
     m_DevicePath.GetText(dv);
+    m_FirmPath.GetText(fp);
     // identical to the built-in default -> clear the key so the default applies
     WriteIni(L"RetailCTRAESKeyDir", r.Compare(m_DefaultRetail) == 0 ? UString() : r);
     WriteIni(L"DevCTRAESKeyDir",    d.Compare(m_DefaultDev)    == 0 ? UString() : d);
     WriteIni(L"DeviceDataDir",      dv.Compare(m_DefaultDevice)== 0 ? UString() : dv);
+    WriteIni(L"FirmPubKeyDir",      fp.Compare(m_DefaultFirm)  == 0 ? UString() : fp);
     _needSave = false;
   }
   return PSNRET_NOERROR;

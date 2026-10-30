@@ -510,3 +510,13 @@ Opna möppu
 Velja Retail 3DS AES-lyklamöppu
 15006
 Velja Devkit 3DS AES-lyklamöppu
+15007
+Mappa með sérgögnum 3DS-tölvunnar
+15008
+Velja möppu með sérgögnum 3DS-tölvunnar
+15009
+Endurbyggja skyndiminni
+15010
+Mappa með opinberum 3DS FIRM-lykli
+15011
+Velja möppu með opinberum 3DS FIRM-lykli

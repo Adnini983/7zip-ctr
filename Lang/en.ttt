@@ -1,4 +1,4 @@
-﻿;!@Lang2@!UTF-8!
+;!@Lang2@!UTF-8!
 ; 24.04 : 2024-04-05 : Igor Pavlov
 ;
 ;
@@ -554,3 +554,7 @@ Select the devkit 3DS AES key folder
 Select the 3DS console-unique data folder
 15009
 Rebuild cache
+15010
+3DS FIRM public key folder
+15011
+Select 3DS FIRM public key folder

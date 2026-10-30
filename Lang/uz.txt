@@ -510,3 +510,13 @@ Papkani ochish
 Retail 3DS AES kalitlari papkasini tanlash
 15006
 Devkit 3DS AES kalitlari papkasini tanlash
+15007
+3DS konsolining noyob ma'lumot papkasi
+15008
+3DS konsolining noyob ma'lumot papkasini tanlash
+15009
+Keshni qayta qurish
+15010
+3DS FIRM ochiq kalit papkasi
+15011
+3DS FIRM ochiq kalit papkasini tanlash

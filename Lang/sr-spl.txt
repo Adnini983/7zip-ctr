@@ -419,3 +419,13 @@ Otvori fasciklu
 Izaberi fasciklu AES ključeva Retail 3DS
 15006
 Izaberi fasciklu AES ključeva Devkit 3DS
+15007
+Fascikla jedinstvenih podataka konzole 3DS
+15008
+Izaberi fasciklu jedinstvenih podataka konzole 3DS
+15009
+Ponovo izgradi keš
+15010
+Fascikla javnog ključa 3DS FIRM
+15011
+Izaberi fasciklu javnog ključa 3DS FIRM

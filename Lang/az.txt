@@ -548,3 +548,13 @@ Qovluğu aç
 Retail 3DS AES açar qovluğunu seç
 15006
 Devkit 3DS AES açar qovluğunu seç
+15007
+3DS konsola unikal məlumat qovluğu
+15008
+3DS konsola unikal məlumat qovluğunu seçin
+15009
+Keşi yenidən qur
+15010
+3DS FIRM açıq açar qovluğu
+15011
+3DS FIRM açıq açar qovluğunu seçin

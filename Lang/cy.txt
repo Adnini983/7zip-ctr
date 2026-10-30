@@ -419,3 +419,13 @@ Agor ffolder
 Dewiswch ffolder allweddi AES Retail 3DS
 15006
 Dewiswch ffolder allweddi AES Devkit 3DS
+15007
+Ffolder data unig consol 3DS
+15008
+Dewis ffolder data unig consol 3DS
+15009
+Adeiladu storfa dros dro
+15010
+Ffolder allwedd gyhoeddus 3DS FIRM
+15011
+Dewis ffolder allwedd gyhoeddus 3DS FIRM

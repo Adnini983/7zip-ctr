@@ -510,3 +510,13 @@ Otvori mapu
 Odaberi mapu ključeva AES Retail 3DS
 15006
 Odaberi mapu ključeva AES Devkit 3DS
+15007
+Mapa jedinstvenih podataka konzole 3DS
+15008
+Odaberi mapu jedinstvenih podataka konzole 3DS
+15009
+Obnovi predmemoriju
+15010
+Mapa javnog ključa 3DS FIRM
+15011
+Odaberi mapu javnog ključa 3DS FIRM

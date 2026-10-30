@@ -419,3 +419,13 @@ Oscail fillteán
 Roghnaigh fillteán eochracha AES Retail 3DS
 15006
 Roghnaigh fillteán eochracha AES Devkit 3DS
+15007
+Fillteán sonraí uathúla consól 3DS
+15008
+Roghnaigh fillteán sonraí uathúla consól 3DS
+15009
+Atógáil taisce
+15010
+Fillteán eochrach poiblí 3DS FIRM
+15011
+Roghnaigh fillteán eochrach poiblí 3DS FIRM

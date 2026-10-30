@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+3DS konsolanıń unikal maǵlıwmat papkası
+15008
+3DS konsolanıń unikal maǵlıwmat papkasın tańlaw
+15009
+Keshti qayta qurıw
+15010
+3DS FIRM járiyqa kilt papkası
+15011
+3DS FIRM járiyqa kilt papkasın tańlaw

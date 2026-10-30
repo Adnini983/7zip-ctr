@@ -854,8 +854,13 @@ static void Hex16FromText(const UString &hex, Byte out[16])
 // Source priority for a unit (retail/dev):
 //   1) keystone.ini [Keystone] RetailFirmPubKeyHex= / DevFirmPubKeyHex= (512 hex)
 //   2) RetailFirmPubKeyFile= / DevFirmPubKeyFile= (256B big-endian binary, or hex text)
-//   3) boot9.bin (FirmBoot9Path= or keystone\pubkey\boot9.bin): the NAND-FIRM
-//      keyslot1 modulus, retail @0xB1E0 / dev @0xC4E0 (256B, public exponent 65537).
+//   3) FirmPubKeyDir= folder (default keystone\pubkey) with the extracted
+//      standalone modulus files: retail_firm_pubkey.bin / dev_firm_pubkey.bin
+//      (256B big-endian, public exponent 65537). boot9.bin must NOT be placed
+//      in this folder.
+//   4) boot9.bin via FirmBoot9Path= or the per-console DeviceDataDir tree:
+//      a private 64KB boot9 dump holds BOTH key sets, keyslot1 NAND-FIRM
+//      modulus retail @0xB1E0 / dev @0xC4E0.
 static unsigned HexStrToBytesN(const UString &hex, Byte *out, unsigned max)
 {
   memset(out, 0, max);
@@ -873,6 +878,24 @@ static unsigned HexStrToBytesN(const UString &hex, Byte *out, unsigned max)
   return n;
 }
 
+// Read a standalone FIRM public-key file: 256B big-endian modulus, or hex text.
+static bool ReadFirmPubKeyFile(const UString &p, Byte N[256])
+{
+  Byte buf[2048];
+  unsigned got = 0;
+  if (!ReadRawFile(p, buf, sizeof(buf), got) || got == 0)
+    return false;
+  if (got == 256)
+  {
+    memcpy(N, buf, 256);
+    return true;
+  }
+  UString hs;
+  for (unsigned i = 0; i < got; i++)
+    hs += (wchar_t)buf[i];
+  return HexStrToBytesN(hs, N, 256) == 256;
+}
+
 static bool LoadFirmModulus(bool dev, Byte N[256])
 {
   memset(N, 0, 256);
@@ -886,33 +909,28 @@ static bool LoadFirmModulus(bool dev, Byte N[256])
   if (!fp.IsEmpty())
   {
     UString p = KeystoneIsAbsPath(fp) ? fp : dll + UString(L"\\") + fp;
-    unsigned got = 0;
-    Byte buf[2048];
-    if (ReadRawFile(p, buf, sizeof(buf), got) && got > 0)
-    {
-      if (got == 256)
-      {
-        memcpy(N, buf, 256);
-        return true;
-      }
-      UString hs;
-      for (unsigned i = 0; i < got; i++)
-        hs += (wchar_t)buf[i];
-      if (HexStrToBytesN(hs, N, 256) == 256)
-        return true;
-    }
+    if (ReadFirmPubKeyFile(p, N))
+      return true;
   }
 
-  // boot9.bin lookup order: FirmBoot9Path= -> keystone\pubkey\boot9.bin ->
-  // device data dir (root and one level of <SN> subdirs). The 64KB boot9 dump
-  // holds BOTH key sets: keyslot1 NAND-FIRM modulus at +0xB1E0 (retail) and
-  // +0xC4E0 (devunit).
+  // Standalone extracted modulus files in the FIRM public-key folder. This
+  // folder (FirmPubKeyDir=, default keystone\pubkey) holds ONLY the extracted
+  // 256B big-endian RSA-2048 moduli - never a boot9.bin dump:
+  //   retail_firm_pubkey.bin / dev_firm_pubkey.bin
+  UString kd = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"FirmPubKeyDir"), L"keystone\\pubkey");
+  UString kf = kd + UString(L"\\") + (dev ? UString(L"dev_firm_pubkey.bin") : UString(L"retail_firm_pubkey.bin"));
+  if (ReadFirmPubKeyFile(kf, N))
+    return true;
+
+  // boot9.bin fallback (explicit FirmBoot9Path=, or the per-console
+  // DeviceDataDir tree): a private 64KB boot9 dump holds BOTH key sets -
+  // keyslot1 NAND-FIRM modulus at +0xB1E0 (retail) and +0xC4E0 (devunit).
+  // Never auto-looked-up under keystone\pubkey.
   UString b9p = ReadKeystoneIni(dll, L"FirmBoot9Path");
   UString tryPath[16];
   unsigned nTry = 0;
   if (!b9p.IsEmpty())
     tryPath[nTry++] = KeystoneIsAbsPath(b9p) ? b9p : dll + UString(L"\\") + b9p;
-  tryPath[nTry++] = dll + UString(L"\\keystone\\pubkey\\boot9.bin");
   UString devRoot = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
   if (!devRoot.IsEmpty())
   {

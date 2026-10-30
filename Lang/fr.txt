@@ -548,3 +548,13 @@ Ouvrir le dossier
 Sélectionner le dossier des clés AES 3DS Retail
 15006
 Sélectionner le dossier des clés AES 3DS Devkit
+15007
+Dossier de données uniques de console 3DS
+15008
+Sélectionner le dossier de données uniques de console 3DS
+15009
+Reconstruire le cache
+15010
+Dossier de clé publique 3DS FIRM
+15011
+Sélectionner le dossier de clé publique 3DS FIRM

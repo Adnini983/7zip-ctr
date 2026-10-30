@@ -419,3 +419,13 @@ Malfermi dosieron
 Elekti dosieron de AES-ŝlosiloj Retail 3DS
 15006
 Elekti dosieron de AES-ŝlosiloj Devkit 3DS
+15007
+Dosierujo de unikaj datumoj de konzolo 3DS
+15008
+Elekti dosierujon de unikaj datumoj de konzolo 3DS
+15009
+Rekonstrui kaŝmemoron
+15010
+Dosierujo de publika ŝlosilo 3DS FIRM
+15011
+Elekti dosierujon de publika ŝlosilo 3DS FIRM

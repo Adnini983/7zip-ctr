@@ -510,3 +510,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+Àpótí àwọn data ìdámọ̀ kọ̀ńsọ́lù 3DS
+15008
+Yan àpótí àwọn data ìdámọ̀ kọ̀ńsọ́lù 3DS
+15009
+Tún kọ́kọ́-ìmúra kọ́
+15010
+Àpótí bọ́tà ìkọ́kọ́ gbogbogbò 3DS FIRM
+15011
+Yan àpótí bọ́tà ìkọ́kọ́ gbogbogbò 3DS FIRM

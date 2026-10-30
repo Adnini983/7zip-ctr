@@ -510,3 +510,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+3DS консоленың уникаль мәгълүмат папкасы
+15008
+3DS консоленың уникаль мәгълүмат папкасын сайлау
+15009
+Кэшны яңадан төзү
+15010
+3DS FIRM ачык ачкыч папкасы
+15011
+3DS FIRM ачык ачкыч папкасын сайлау

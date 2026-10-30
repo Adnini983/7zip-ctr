@@ -529,3 +529,13 @@ Abrir cartafolio
 Seleccionar o cartafolio de chaves AES do 3DS Retail
 15006
 Seleccionar o cartafolio de chaves AES do 3DS Devkit
+15007
+Cartafol de datos únicos de consola 3DS
+15008
+Seleccionar cartafol de datos únicos de consola 3DS
+15009
+Reconstruír a caché
+15010
+Cartafol de clave pública 3DS FIRM
+15011
+Seleccionar cartafol de clave pública 3DS FIRM

@@ -548,3 +548,13 @@ Klasörü aç
 Retail 3DS AES anahtar klasörünü seç
 15006
 Devkit 3DS AES anahtar klasörünü seç
+15007
+3DS konsoluna özel veri klasörü
+15008
+3DS konsoluna özel veri klasörünü seçin
+15009
+Önbelleği yeniden oluştur
+15010
+3DS FIRM genel anahtar klasörü
+15011
+3DS FIRM genel anahtar klasörünü seçin

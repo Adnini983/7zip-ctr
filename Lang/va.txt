@@ -548,3 +548,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+Cartella de dæti unici de console 3DS
+15008
+Selecionar cartella de dæti unici de console 3DS
+15009
+Recostruì la cache
+15010
+Cartella de ciave pùblica 3DS FIRM
+15011
+Selecionar cartella de ciave pùblica 3DS FIRM

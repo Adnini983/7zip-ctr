@@ -419,3 +419,13 @@ Atvērt mapi
 Izvēlieties Retail 3DS AES atslēgu mapi
 15006
 Izvēlieties Devkit 3DS AES atslēgu mapi
+15007
+3DS konsoles unikālo datu mape
+15008
+Izvēlēties 3DS konsoles unikālo datu mapi
+15009
+Pārbūvēt kešatmiņu
+15010
+3DS FIRM publiskās atslēgas mape
+15011
+Izvēlēties 3DS FIRM publiskās atslēgas mapi

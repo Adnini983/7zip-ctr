@@ -548,3 +548,13 @@ Ordner öffnen
 Retail-3DS-AES-Schlüsselordner auswählen
 15006
 Devkit-3DS-AES-Schlüsselordner auswählen
+15007
+Ordner für eindeutige 3DS-Konsolendaten
+15008
+Ordner für eindeutige 3DS-Konsolendaten auswählen
+15009
+Cache neu aufbauen
+15010
+Ordner für 3DS-FIRM-öffentlichen Schlüssel
+15011
+Ordner für 3DS-FIRM-öffentlichen Schlüssel auswählen

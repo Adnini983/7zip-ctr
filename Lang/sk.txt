@@ -548,3 +548,13 @@ Otvoriť priečinok
 Vybrať priečinok kľúčov AES Retail 3DS
 15006
 Vybrať priečinok kľúčov AES Devkit 3DS
+15007
+Priečinok jedinečných údajov konzoly 3DS
+15008
+Vybrať priečinok jedinečných údajov konzoly 3DS
+15009
+Znova vytvoriť vyrovnávaciu pamäť
+15010
+Priečinok verejného kľúča 3DS FIRM
+15011
+Vybrať priečinok verejného kľúča 3DS FIRM

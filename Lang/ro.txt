@@ -548,3 +548,13 @@ Deschide dosarul
 Selectează dosarul cu chei AES Retail 3DS
 15006
 Selectează dosarul cu chei AES Devkit 3DS
+15007
+Folder de date unice pentru consola 3DS
+15008
+Selectați folderul de date unice pentru consola 3DS
+15009
+Reconstruire cache
+15010
+Folder cheie publică 3DS FIRM
+15011
+Selectați folderul cheie publică 3DS FIRM

@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+Peldanka daneya taybet a konsolê 3DS
+15008
+Peldanka daneya taybet a konsolê 3DS hilbijêre
+15009
+Nûvekirina cache
+15010
+Peldanka mifta gelemperî 3DS FIRM
+15011
+Peldanka mifta gelemperî 3DS FIRM hilbijêre

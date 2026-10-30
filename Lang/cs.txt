@@ -548,3 +548,13 @@ Otevřít složku
 Vybrat složku klíčů AES Retail 3DS
 15006
 Vybrat složku klíčů AES Devkit 3DS
+15007
+Složka jedinečných dat konzole 3DS
+15008
+Vybrat složku jedinečných dat konzole 3DS
+15009
+Znovu vytvořit mezipaměť
+15010
+Složka veřejného klíče 3DS FIRM
+15011
+Vybrat složku veřejného klíče 3DS FIRM
