@@ -854,13 +854,22 @@ static void Hex16FromText(const UString &hex, Byte out[16])
 // Source priority for a unit (retail/dev):
 //   1) keystone.ini [Keystone] RetailFirmPubKeyHex= / DevFirmPubKeyHex= (512 hex)
 //   2) RetailFirmPubKeyFile= / DevFirmPubKeyFile= (256B big-endian binary, or hex text)
-//   3) FirmPubKeyDir= folder (default keystone\pubkey) with the extracted
-//      standalone modulus files: retail_firm_pubkey.bin / dev_firm_pubkey.bin
-//      (256B big-endian, public exponent 65537). boot9.bin must NOT be placed
-//      in this folder.
-//   4) boot9.bin via FirmBoot9Path= or the per-console DeviceDataDir tree:
-//      a private 64KB boot9 dump holds BOTH key sets, keyslot1 NAND-FIRM
-//      modulus retail @0xB1E0 / dev @0xC4E0.
+//   3) FirmPubKeyDir= folder (default keystone\pubkey). This folder is managed
+//      by its OWN independent .ini file "pubkey.ini" ([FirmPubKey] section):
+//      RetailFirmPubKeyFile= / DevFirmPubKeyFile= point at the standalone 256B
+//      big-endian modulus files (retail_firm_pubkey.bin / dev_firm_pubkey.bin,
+//      e=65537). boot9.bin must NOT be placed in this folder.
+//      If pubkey.ini is missing/corrupt or the referenced files cannot be read,
+//      fall through to the ctrdevice scan below.
+//   4) FirmBoot9Path= explicit boot9.bin.
+//   5) ctrdevice scan: each per-console sub-folder under DeviceDataDir
+//      (default keystone\ctrdevice) is examined for its "ctrindex.ini"; the
+//      [ctrindex] "boot9=" key locates the usable boot9.bin (relative to that
+//      sub-folder or absolute). A private 64KB boot9 dump holds BOTH key sets:
+//      keyslot1 NAND-FIRM modulus retail @0xB1E0 / dev @0xC4E0.
+//      If NO ctrindex.ini with a usable boot9= is found, no public key is
+//      loaded and FIRM signature verification is SKIPPED entirely (the archive
+//      reports "Not verified (no public key loaded)").
 static unsigned HexStrToBytesN(const UString &hex, Byte *out, unsigned max)
 {
   memset(out, 0, max);
@@ -896,6 +905,25 @@ static bool ReadFirmPubKeyFile(const UString &p, Byte N[256])
   return HexStrToBytesN(hs, N, 256) == 256;
 }
 
+// Read a "boot9=" path from a per-console ctrindex.ini and extract the keyslot1
+// NAND-FIRM modulus for the requested unit (retail @0xB1E0 / dev @0xC4E0).
+static bool ReadBoot9FromCtrindex(const UString &iniDir, bool dev, Byte N[256])
+{
+  UString ini = iniDir + UString(L"\\ctrindex.ini");
+  wchar_t buf[MAX_PATH] = { 0 };
+  GetPrivateProfileStringW(L"ctrindex", L"boot9", L"", buf, MAX_PATH, ini.Ptr());
+  if (!buf[0])
+    return false;
+  UString b9 = UString(buf);
+  UString p = KeystoneIsAbsPath(b9) ? b9 : iniDir + UString(L"\\") + b9;
+  unsigned got = 0;
+  Byte b9b[65536];
+  if (!ReadRawFile(p, b9b, sizeof(b9b), got) || got < 65536)
+    return false;
+  memcpy(N, b9b + (dev ? 0xC4E0 : 0xB1E0), 256);
+  return N[255] != 0;
+}
+
 static bool LoadFirmModulus(bool dev, Byte N[256])
 {
   memset(N, 0, 256);
@@ -913,51 +941,70 @@ static bool LoadFirmModulus(bool dev, Byte N[256])
       return true;
   }
 
-  // Standalone extracted modulus files in the FIRM public-key folder. This
-  // folder (FirmPubKeyDir=, default keystone\pubkey) holds ONLY the extracted
-  // 256B big-endian RSA-2048 moduli - never a boot9.bin dump:
+  // Standalone FIRM public-key folder (FirmPubKeyDir=, default keystone\pubkey).
+  // It is managed by its OWN independent "pubkey.ini" ([FirmPubKey] section)
+  // which names the modulus files. The folder holds ONLY those extracted 256B
+  // big-endian RSA-2048 moduli - never a boot9.bin dump:
+  //   pubkey.ini
   //   retail_firm_pubkey.bin / dev_firm_pubkey.bin
   UString kd = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"FirmPubKeyDir"), L"keystone\\pubkey");
-  UString kf = kd + UString(L"\\") + (dev ? UString(L"dev_firm_pubkey.bin") : UString(L"retail_firm_pubkey.bin"));
-  if (ReadFirmPubKeyFile(kf, N))
-    return true;
-
-  // boot9.bin fallback (explicit FirmBoot9Path=, or the per-console
-  // DeviceDataDir tree): a private 64KB boot9 dump holds BOTH key sets -
-  // keyslot1 NAND-FIRM modulus at +0xB1E0 (retail) and +0xC4E0 (devunit).
-  // Never auto-looked-up under keystone\pubkey.
-  UString b9p = ReadKeystoneIni(dll, L"FirmBoot9Path");
-  UString tryPath[16];
-  unsigned nTry = 0;
-  if (!b9p.IsEmpty())
-    tryPath[nTry++] = KeystoneIsAbsPath(b9p) ? b9p : dll + UString(L"\\") + b9p;
-  UString devRoot = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
-  if (!devRoot.IsEmpty())
   {
-    tryPath[nTry++] = devRoot + UString(L"\\boot9.bin");
-    WIN32_FIND_DATAW fd;
-    HANDLE h = FindFirstFileW(devRoot + UString(L"\\*"), &fd);
-    if (h != INVALID_HANDLE_VALUE)
-    {
-      do
-      {
-        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.' && nTry < 16)
-          tryPath[nTry++] = devRoot + UString(L"\\") + (const wchar_t *)fd.cFileName + UString(L"\\boot9.bin");
-      } while (FindNextFileW(h, &fd) && nTry < 16);
-      FindClose(h);
-    }
+    UString ini = kd + UString(L"\\pubkey.ini");
+    wchar_t buf[MAX_PATH] = { 0 };
+    GetPrivateProfileStringW(L"FirmPubKey",
+        dev ? L"DevFirmPubKeyFile" : L"RetailFirmPubKeyFile",
+        dev ? L"dev_firm_pubkey.bin" : L"retail_firm_pubkey.bin",
+        buf, MAX_PATH, ini.Ptr());
+    UString fn = UString(buf);
+    if (fn.IsEmpty())
+      fn = UString(dev ? L"dev_firm_pubkey.bin" : L"retail_firm_pubkey.bin");
+    UString p = KeystoneIsAbsPath(fn) ? fn : kd + UString(L"\\") + fn;
+    if (ReadFirmPubKeyFile(p, N))
+      return true;
+    // pubkey.ini missing/corrupt or referenced file unreadable -> fall through.
   }
-  for (unsigned i = 0; i < nTry; i++)
+
+  // Explicit FirmBoot9Path= fallback.
+  UString b9p = ReadKeystoneIni(dll, L"FirmBoot9Path");
+  if (!b9p.IsEmpty())
   {
+    UString p = KeystoneIsAbsPath(b9p) ? b9p : dll + UString(L"\\") + b9p;
     unsigned got = 0;
     Byte b9[65536];
-    if (ReadRawFile(tryPath[i], b9, sizeof(b9), got) && got >= 65536)
+    if (ReadRawFile(p, b9, sizeof(b9), got) && got >= 65536)
     {
       memcpy(N, b9 + (dev ? 0xC4E0 : 0xB1E0), 256);
       if (N[255] != 0)
         return true;
     }
   }
+
+  // ctrdevice scan: each per-console sub-folder under DeviceDataDir is checked
+  // for a ctrindex.ini whose "boot9=" key locates a usable boot9.bin.
+  UString devRoot = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
+  if (!devRoot.IsEmpty())
+  {
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(devRoot + UString(L"\\*"), &fd);
+    if (h != INVALID_HANDLE_VALUE)
+    {
+      do
+      {
+        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.')
+        {
+          UString sub = devRoot + UString(L"\\") + (const wchar_t *)fd.cFileName;
+          if (ReadBoot9FromCtrindex(sub, dev, N))
+          {
+            FindClose(h);
+            return true;
+          }
+        }
+      } while (FindNextFileW(h, &fd));
+      FindClose(h);
+    }
+  }
+
+  // No public key available: the caller SKIPS FIRM signature verification.
   return false;
 }
 
