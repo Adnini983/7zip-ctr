@@ -1,0 +1,20 @@
+CAPTION "Keystone"
+BEGIN
+  LTEXT       "Retail AES key folder:", IDT_KEYSTONE_RETAIL_LABEL, m, m, xc, 8
+  EDITTEXT    IDE_KEY_RETAIL_PATH, m, 20, xc - m - m - bxsDots - m - bxsDots, 14, ES_AUTOHSCROLL
+  PUSHBUTTON  "...", IDB_KEY_RETAIL_BROWSE, xs - m - bxsDots - m - bxsDots, 19, bxsDots, bys
+  PUSHBUTTON  "", IDB_KEY_RETAIL_OPEN, xs - m - bxsDots, 19, bxsDots, bys
+
+  LTEXT       "Devkit AES key folder:", IDT_KEYSTONE_DEV_LABEL, m, 44, xc, 8
+  EDITTEXT    IDE_KEY_DEV_PATH, m, 56, xc - m - m - bxsDots - m - bxsDots, 14, ES_AUTOHSCROLL
+  PUSHBUTTON  "...", IDB_KEY_DEV_BROWSE, xs - m - bxsDots - m - bxsDots, 55, bxsDots, bys
+  PUSHBUTTON  "", IDB_KEY_DEV_OPEN, xs - m - bxsDots, 55, bxsDots, bys
+
+  LTEXT       "3DS console-unique data folder:", IDT_KEYSTONE_DEVICE_LABEL, m, 80, xc, 8
+  EDITTEXT    IDE_KEY_DEVICE_PATH, m, 92, xc - m - m - bxsDots - m - bxsDots, 14, ES_AUTOHSCROLL
+  PUSHBUTTON  "...", IDB_KEY_DEVICE_BROWSE, xs - m - bxsDots - m - bxsDots, 91, bxsDots, bys
+  PUSHBUTTON  "", IDB_KEY_DEVICE_OPEN, xs - m - bxsDots, 91, bxsDots, bys
+
+  PUSHBUTTON  "Reset to defaults", IDT_KEYSTONE_RESET, m, 112, 96, bys
+  PUSHBUTTON  "Rebuild cache", IDB_KEY_REBUILD_CACHE, m + 104, 112, 104, bys
+END

@@ -202,6 +202,8 @@ Mostre les liniis de &gridele sot
 
 Mût di selezion &alternatîf
 Dopre pagjinis di memorie &largjis
+2600
+Keystone
 2900
 Informazions su 7-Zip CTR
 7-Zip CTR al è un program libar.
@@ -404,4 +406,16 @@ Judizi / Utilizazion
 Passaçs:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

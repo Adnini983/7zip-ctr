@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-aeskeys2ctr.py -- Convert 3DS AES keys into 7-Zip CTR "3dskey" folders.
+aeskeys2ctr.py -- Convert 3DS AES keys into 7-Zip CTR "keystone" folders.
 
 The N3dsHandler in 7-Zip CTR does NOT hardcode any key. It loads text files
-from a folder next to 7z.dll named:
-    3dskey\      (retail unit keys)     each file "slot0x2CKeyX=0123...ABCD"
-    3dskey_dev\  (devkit unit keys)     same format
+from a folder next to 7z.dll (overridable in keystone.ini):
+    keystone\ctraes_retail\  (retail unit keys)  each file "slot0x2CKeyX=0123...ABCD"
+    keystone\ctraes_dev\     (devkit unit keys)  same format
 
 This tool turns the output of GodMode9 (aes_keys.txt from the built-in
 DumpKeys script, an aeskeydb.bin, or raw slot0x*.bin dumped from the K: drive)
@@ -23,9 +23,9 @@ Classification (3dbrew "Keyslot ranges" / AES key-init):
 
 NOTE: on real retail 3DS the "console-unique" keyX values happen to be
 identical across units (Nintendo ships a fixed conunique block), so they are
-already public on 3dbrew. We still keep them in 3dskey_private/ by default to
+already public on 3dbrew. We still keep them in keystone_private/ by default to
 be conservative. Pass --all-pub if you verified your values match the public
-ones and want them in 3dskey/ too.
+ones and want them in keystone\ctraes_retail\ too.
 
 Usage:
     python aeskeys2ctr.py <input> [--out <dir>] [--all-pub]
@@ -35,10 +35,10 @@ Usage:
       - a path to aeskeydb.bin      (GodMode9 key database, 32 B/entry)
       - a directory of slot0x*.bin  (dumped from GodMode9 K: drive)
 
-Output layout (under <out>, default "3dskey_out"):
-    3dskey\           retail publishable  -> copy next to 7z.dll
-    3dskey_dev\       devkit publishable  -> copy next to 7z.dll
-    3dskey_private\   console-unique / OTP-derived (DO NOT publish)
+Output layout (under <out>, default "keystone_out"):
+    keystone\ctraes_retail\   retail publishable  -> copy next to 7z.dll
+    keystone\ctraes_dev\       devkit publishable  -> copy next to 7z.dll
+    keystone_private\         console-unique / OTP-derived (DO NOT publish)
 """
 
 import os
@@ -71,12 +71,13 @@ def unit_of_name(name_lower):
     if name_lower.startswith("common"):
         return "dev" if name_lower.endswith("n") else "ret"
     # ordinary slot0x..KeyX/Y/N: unit cannot be told from the name alone;
-    # a retail dump goes to 3dskey\, a devkit dump to 3dskey_dev\ (--devkit)
+    # a retail dump goes to keystone\ctraes_retail\, a devkit dump to
+    # keystone\ctraes_dev\ (--devkit)
     return "ret"
 
 
 def write_key(out_dir, name, hexval):
-    """Write one 3dskey text file: '<Name>=<hex>'."""
+    """Write one key text file: '<Name>=<hex>'."""
     os.makedirs(out_dir, exist_ok=True)
     # strip any non-hex chars (spaces, dashes, etc.)
     hexval = re.sub(r"[^0-9a-fA-F]", "", hexval)
@@ -144,7 +145,7 @@ def main():
         print(__doc__)
         return 1
     src = sys.argv[1]
-    out = "3dskey_out"
+    out = "keystone_out"
     all_pub = False
     devkit = False
     i = 2
@@ -191,22 +192,22 @@ def main():
         priv = {}
 
     if devkit:
-        # put all publishable retail slots into 3dskey_dev (devkit dump)
+        # put all publishable retail slots into keystone\ctraes_dev (devkit dump)
         pub_d.update(pub_r)
         pub_r = {}
 
     n = 0
     for name, h in pub_r.items():
-        n += write_key(os.path.join(out, "3dskey"), name, h)
+        n += write_key(os.path.join(out, "keystone", "ctraes_retail"), name, h)
     for name, h in pub_d.items():
-        n += write_key(os.path.join(out, "3dskey_dev"), name, h)
+        n += write_key(os.path.join(out, "keystone", "ctraes_dev"), name, h)
     for name, h in priv.items():
-        n += write_key(os.path.join(out, "3dskey_private"), name, h)
+        n += write_key(os.path.join(out, "keystone_private"), name, h)
 
     print("Parsed %d keys -> %d written" % (len(keys), n))
-    print("  retail publishable : %d  (-> 3dskey\\)" % len(pub_r))
-    print("  devkit publishable : %d  (-> 3dskey_dev\\)" % len(pub_d))
-    print("  private (no upload): %d  (-> 3dskey_private\\)" % len(priv))
+    print("  retail publishable : %d  (-> keystone\\ctraes_retail\\)" % len(pub_r))
+    print("  devkit publishable : %d  (-> keystone\\ctraes_dev\\)" % len(pub_d))
+    print("  private (no upload): %d  (-> keystone_private\\)" % len(priv))
     print("Output dir: %s" % os.path.abspath(out))
     return 0
 

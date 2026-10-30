@@ -14,13 +14,20 @@ build\
    7z.dll / 7z32.dll  核心（handler 在 7z.dll）
    7zG.exe / *.sfx
    Lang\             多语言文本（zh-cn/zh-tw/…）
-   3dskey\            零售机密钥（从实机提取）
-   3dskey_dev\        开发机密钥
-   seeddb.bin         可选 seed 数据库
+   keystone\
+      ctraes_retail\ 零售机密钥（从实机提取）
+      ctraes_dev\     开发机密钥
+      ctrdevice\<SN>\  （可选）本机 NAND 设备档案，仅本地、勿分发，见 NAND.md
+      cache\keystone.cache （程序自动生成）统一二进制缓存：设备派生结果 + AES 密钥表，
+                          带索引、数据区轻量混淆；含本机密钥，仅本地、不可共享、勿分发
+   keystone.ini      （包内已附模板；留空=用上面默认目录，可自定义位置）
+   seeddb.bin        可选 seed 数据库
 ```
 
-> 密钥必须放在 **`7z.dll` 同目录** 的 `3dskey` / `3dskey_dev`。
-> 只要 `7z.dll` 换位置，密钥文件夹要跟着放。
+> 默认密钥目录为 **`7z.dll` 同目录** 的 `keystone\ctraes_retail` /
+> `keystone\ctraes_dev`；只要 `7z.dll` 换位置，密钥文件夹要跟着放。
+> 想把密钥放到别处时，在 `keystone.ini`（或「选项 → 密钥库（Keystone）」页）里
+> 指定绝对/相对路径，详见 [KEYS.md](KEYS.md#2-自定义密钥目录keystoneini)。
 
 ## 2. 支持的容器与扩展名
 
@@ -34,6 +41,7 @@ build\
 | `.cnt` | Contents.cnt（CSU 内或单独抽出） | 内嵌 `.cia` 收进 `Contents/` 子目录，按 16 位 title id 命名 |
 | `.tmd` | CDN TMD（NUS 元数据，`tmd.<n>`） | 元数据浏览：title id / 版本 / content 清单（`Contents/`）；需 ticket 才能解密 content |
 | `.romfs` `.exefs` `.bin` | 已解密明文 RomFS / ExeFS 段（独立散文件） | 直接浏览并抽取内部文件，**不需要任何密钥** |
+| `nand.bin`（本机 NAND 整卡备份） | NAND 型 NCSD | 用 `keystone\ctrdevice\` 档案、或直接把 boot9/OTP/nand_cid 放在 nand.bin 同目录派生密钥，列出 TWL / AGB_Save / Firm0 / Firm1 / CTRNAND，见 [NAND.md](NAND.md) |
 
 ### 文件关联
 
@@ -92,11 +100,12 @@ Content 0 = id=0xC905D5BC size=0x61800
 ## 5. 常见问题
 
 **Q：打开加密文件时为什么显示"未解密"？**
-A：缺少对应密钥。检查 `3dskey`（零售机）或 `3dskey_dev`（开发机）
-是否放对了文件、文件名是否如 `slot0x2CKeyX.key`。
+A：缺少对应密钥。检查 `keystone\ctraes_retail`（零售机）或
+`keystone\ctraes_dev`（开发机）是否放对了文件、文件名是否如
+`slot0x2CKeyX.key`；目录若自定义过，确认 `keystone.ini` 指向正确。
 
 **Q：开发机 CSU 打不开 / 解出来是乱码？**
-A：确认用 `3dskey_dev\` 的开发机密钥集。handler 会自动用
+A：确认用 `keystone\ctraes_dev\` 的开发机密钥集。handler 会自动用
 ExeFS 头试解来区分 dev / retail，但前提是两个密钥集都在。
 
 **Q：Contents.cnt 里没有看到 CIA / 看到 0KB 或 content_xxx？**
@@ -125,3 +134,22 @@ A：只要它们是**已解密明文**，本版本直接解析，不需要任何
 - `romfs.bin`：识别开头 `IVFC` 并整棵遍历 RomFS 目录树。
 注意：这里打开的是**明文段本身**，不附带 NCCH exheader、签名等元数据；若是加密态
 （未解密的 NCCH 内部段）则本功能不处理，需先在 CIA/NCCH 容器内解密后再抽出。
+
+**Q：打开自己的 NAND 备份（`nand.bin`）看不到分区 / 提示无法打开？**
+A：NAND 分区密钥是机器独有的。两种放法任选其一：
+1. 在 `keystone\ctrdevice\<SN>\` 登记设备档案（boot9.bin、OTP、NAND CID、ctrindex.ini）；
+2. 不登记，直接把 `boot9.bin`、加密 OTP（`otp.mem`/`otp.bin`）或明文 OTP
+   （`otp_dec.mem`/`otp_dec.bin`）、`nand_cid.mem`/`nand_cid.bin` 放在
+   **nand.bin 同目录**（`.mem`/`.bin` 扩展名都接受）。也可加一个 `ctrindex.ini`
+   显式声明单元/型号，跳过询问。
+
+程序先查 `keystone\ctrdevice`，无匹配再回退到 nand.bin 同目录派生并匹配设备。
+裸模式（无 ctrindex.ini）下程序无法自判单元/机型：7zFM 会先后弹窗问"零售/开发"和
+"Old 3DS / New 3DS（开发为 CTR / SNAKE）"，取消即终止；命令行则必须用
+`-unit retail|dev`、`-type ctr|snake`、`-slot 4|5` 指定，缺参或取值非法直接报错退出。
+准备清单、字段、弹窗流程与命令行参数见 [NAND.md](NAND.md)。缺材料、材料不全或与这台
+机器对不上时，7zFM 会直接弹提示框说明缺什么，命令行返回非零退出码，都不会静默卡住。
+TWL（slot0x03）分区由加密 OTP 前 8 字节 + nand_cid 派生，与 CTRNAND 使用同一套设备
+材料，无需额外导出。零售单元仅凭明文 `otp_dec` 即可派生 TWL；**开发单元**若只有
+`otp_dec`、缺加密 OTP，dev TWL 派不出密钥，此时 CTRNAND/Firm/AGB 照常解密，TWL 以
+原始密文列出并在属性窗口注明 TWL 解密失败（详见 NAND.md 2.1.3）。

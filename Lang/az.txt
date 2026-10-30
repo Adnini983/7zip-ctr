@@ -246,6 +246,8 @@ Ayrıcıları Göstərmək
 Bir Toxunuşla Açmaq
 Əvəzedici vəziyyət işarələnməsi
 Böyük yaddaş səhifələri istifadəsi
+2600
+Keystone
 2900
 7-Zip CTR Haqqında
 7-Zip CTR Sərbəst Yayılan Proqramdır
@@ -533,4 +535,16 @@ Arxivin açılmasını ötürmək
 Arxiv açılmadı.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES açar qovluğu
+15002
+Devkit 3DS AES açar qovluğu
+15003
+Defoltlara sıfırla
+15004
+Qovluğu aç
+15005
+Retail 3DS AES açar qovluğunu seç
+15006
+Devkit 3DS AES açar qovluğunu seç

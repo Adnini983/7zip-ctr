@@ -246,6 +246,8 @@ Show &grid lines
 Single-click to open an item
 &Alternative selection mode
 Use &large memory pages
+2600
+Keystone
 2900
 About 7-Zip
 7-Zip is free software
@@ -531,3 +533,24 @@ Maximum amount of RAM memory usage allowed to unpack archives:
 &Allow archive unpacking
 &Skip archive unpacking
 Archive unpacking was skipped.
+
+15000
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder
+15007
+3DS console-unique data folder
+15008
+Select the 3DS console-unique data folder
+15009
+Rebuild cache

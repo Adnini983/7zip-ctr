@@ -239,6 +239,8 @@ Prikaži &linije mreže
 Jedan klik za otvaranje stavke
 Drugi n&ačin označavanja
 Koristi raspo&loživu memoriju
+2600
+Keystone
 2900
 O 7-Zip CTR-u
 7-Zip CTR je besplatan softver.
@@ -495,4 +497,16 @@ Simbolična poveznica mapa
 Mapa čvorišta
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Mapa ključeva AES Retail 3DS
+15002
+Mapa ključeva AES Devkit 3DS
+15003
+Vrati na zadane
+15004
+Otvori mapu
+15005
+Odaberi mapu ključeva AES Retail 3DS
+15006
+Odaberi mapu ključeva AES Devkit 3DS

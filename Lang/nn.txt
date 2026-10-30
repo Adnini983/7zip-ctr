@@ -202,6 +202,8 @@ Vis &rutenett
 
 &Alternativ markerings modus
 Bruk &store minnesider
+2600
+Keystone
 2900
 Om 7-Zip CTR
 7-Zip CTR er fri programvare.
@@ -404,4 +406,16 @@ Yting / Bruk
 Gonger:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Mappe med Retail-3DS-AES-nøklar
+15002
+Mappe med Devkit-3DS-AES-nøklar
+15003
+Set tilbake til standard
+15004
+Opna mappe
+15005
+Vel mappe med Retail-3DS-AES-nøklar
+15006
+Vel mappe med Devkit-3DS-AES-nøklar

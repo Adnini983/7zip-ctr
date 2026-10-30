@@ -19,6 +19,11 @@
 
 class CInFileStream;
 
+// Custom IStreamGetProp propID: returns the full path this stream was opened
+// from (BSTR). Used by the 7-Zip CTR NAND handler to look up per-device key
+// material next to the opened nand.bin when keystone\ctrdevice has no match.
+#define kpidZ7CtrSourcePath ((PROPID)0x77770001)
+
 Z7_PURE_INTERFACES_BEGIN
 DECLARE_INTERFACE(IInFileStream_Callback)
 {
@@ -96,6 +101,7 @@ public:
   bool SupportHardLinks;
   IInFileStream_Callback *Callback;
   UINT_PTR CallbackRef;
+  FString FullPath;   // full path passed to Open(), exposed via kpidZ7CtrSourcePath
 
   CInFileStream();
   ~CInFileStream();
@@ -117,12 +123,14 @@ public:
   bool Open(CFSTR fileName)
   {
     _info_WasLoaded = false;
+    FullPath = fileName;
     return File.Open(fileName);
   }
-  
+
   bool OpenShared(CFSTR fileName, bool shareForWrite)
   {
     _info_WasLoaded = false;
+    FullPath = fileName;
     return File.OpenShared(fileName, shareForWrite);
   }
 };

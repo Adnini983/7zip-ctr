@@ -202,6 +202,8 @@ CPU
 
 جۆری دیاریکردنی &جێگرەوە/ ئەڵتەرناتیڤ
 پەڕەی بیرگەی &گەورە بەکارببە
+2600
+Keystone
 2900
 7-Zip CTR دەربارەی
 7-Zip CTR پڕۆگرامێکی خۆڕایە. لەگەڵ ئەوەشدا، ئەتوانی پاڵپشت بیت لە پەرەپێدانی 7-Zip CTR.
@@ -404,4 +406,16 @@ CPU ڕێژەی بەکارهێنراوی
 دەرچوونەکان:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

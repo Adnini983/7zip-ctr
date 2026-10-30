@@ -17,7 +17,7 @@
 #       aeskeydb.bin 中已有的密钥。若需要把"机器实际加载的全部 keyslot"
 #       完整导出，请另行运行 GodMode9 的 Scripts -> DumpKeys，
 #       它生成 aes_keys.txt + seeddb.bin，再用电脑上的
-#       aeskeys2ctr.py 转换成 3dskey 目录。
+#       aeskeys2ctr.py 转换成 keystone 目录。
 
 set PREVIEW_MODE "quick"
 set ERRORMSG "密钥导出失败"
@@ -256,5 +256,5 @@ echo "  priv/ = 机器特有，勿上传"
 echo "提示：若需完整 keyslot，请运行"
 echo "      GodMode9 Scripts -> DumpKeys"
 echo "      生成 aes_keys.txt + seeddb.bin"
-echo "      再用电脑 aeskeys2ctr.py 转成 3dskey"
+echo "      再用电脑 aeskeys2ctr.py 转成 keystone"
 ask "按 A 返回"

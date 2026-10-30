@@ -885,6 +885,40 @@ Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION
     {
       if (a[0] == '-')
       {
+        // 7-Zip CTR: bare NAND profile switches, forwarded to the dll via env vars:
+        //   -unit=retail|dev   (or "-unit retail")
+        //   -type=ctr|snake    (dev board, or "-type snake")
+        //   -slot=4|5          (Old=4 / New=3DS=5, or "-slot 5")
+        {
+          const char *s = a.Ptr();
+          int sw = -1;  // 0=unit, 1=type, 2=slot
+          AString val;
+          if (_strnicmp(s, "-unit=", 6) == 0) { sw = 0; val = s + 6; }
+          else if (_stricmp(s, "-unit") == 0) { sw = 0; if (curCmd + 1 < numArgs) { curCmd++; val = args[curCmd]; } else { PrintError("Missing value for -unit (retail|dev)"); return 1; } }
+          else if (_strnicmp(s, "-type=", 6) == 0) { sw = 1; val = s + 6; }
+          else if (_stricmp(s, "-type") == 0) { sw = 1; if (curCmd + 1 < numArgs) { curCmd++; val = args[curCmd]; } else { PrintError("Missing value for -type (ctr|snake)"); return 1; } }
+          else if (_strnicmp(s, "-slot=", 6) == 0) { sw = 2; val = s + 6; }
+          else if (_stricmp(s, "-slot") == 0) { sw = 2; if (curCmd + 1 < numArgs) { curCmd++; val = args[curCmd]; } else { PrintError("Missing value for -slot (4|5)"); return 1; } }
+
+          if (sw >= 0)
+          {
+            bool ok = false;
+            const wchar_t *envKey = NULL;
+            if (sw == 0) { ok = (_stricmp(val, "retail") == 0 || _stricmp(val, "dev") == 0); envKey = L"Z7CTR_UNIT"; }
+            else if (sw == 1) { ok = (_stricmp(val, "ctr") == 0 || _stricmp(val, "snake") == 0); envKey = L"Z7CTR_TYPE"; }
+            else { ok = (_stricmp(val, "4") == 0 || _stricmp(val, "5") == 0); envKey = L"Z7CTR_SLOT"; }
+            if (!ok)
+            {
+              PrintError("Invalid device parameter: use -unit retail|dev, -type ctr|snake, -slot 4|5");
+              return 1;
+            }
+            wchar_t wv[256];
+            if (MultiByteToWideChar(CP_UTF8, 0, val.Ptr(), -1, wv, 256) > 0)
+              SetEnvironmentVariableW(envKey, wv);
+            continue;
+          }
+        }
+
         if (!passwordIsDefined && a[1] == 'p')
         {
           password = GetUnicodeString(a.Ptr(2));
@@ -1061,9 +1095,22 @@ Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION
       CMyComPtr<IArchiveOpenCallback> openCallback(openCallbackSpec);
       openCallbackSpec->PasswordIsDefined = passwordIsDefined;
       openCallbackSpec->Password = password;
-      
+
+      // 7-Zip CTR: publish the absolute source path via a process env var so the
+      // dll NAND handler can look up per-device key material next to nand.bin.
+      wchar_t wName[2048], wFull[2048];
+      if (MultiByteToWideChar(CP_UTF8, 0, archiveName, -1, wName, 2048) > 0 &&
+          GetFullPathNameW(wName, 2048, wFull, NULL) > 0)
+        SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", wFull);
+
       const UInt64 scanSize = 1 << 23;
-      if (archive->Open(file, &scanSize, openCallback) != S_OK)
+      HRESULT openRes = archive->Open(file, &scanSize, openCallback);
+      SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_GUI", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_UNIT", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_TYPE", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_SLOT", NULL);
+      if (openRes != S_OK)
       {
         PrintError("Cannot open file as archive", archiveName);
         return 1;

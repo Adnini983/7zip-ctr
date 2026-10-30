@@ -202,6 +202,8 @@ Taispeáin línte na greille
 Brúigh uair amháin chun ní a oscailt
 Bain feidhm as modh roghnaithe malartach
 Bain feidhm as leathanaigh chuimhne mhóra
+2600
+Keystone
 2900
 Maidir le 7-Zip CTR
 Is saorearra é 7-Zip CTR.
@@ -404,4 +406,16 @@ Measúnú / Gnáthaíocht
 Bealaí:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Fillteán eochracha AES Retail 3DS
+15002
+Fillteán eochracha AES Devkit 3DS
+15003
+Aisghabh go réamhshocrú
+15004
+Oscail fillteán
+15005
+Roghnaigh fillteán eochracha AES Retail 3DS
+15006
+Roghnaigh fillteán eochracha AES Devkit 3DS

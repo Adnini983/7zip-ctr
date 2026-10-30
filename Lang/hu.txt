@@ -246,6 +246,8 @@ Látható a rendszermenü
 Elem megnyitása egyszeres kattintással
 &Alternativ kiválasztási mód
 &Nagy memória használata
+2600
+Keystone
 2900
 A 7-Zip CTR névjegye
 A 7-Zip CTR ingyenes szoftver.
@@ -533,4 +535,16 @@ Az archívum kic&somagolásának kihagyása
 Az archívum kicsomagolását kihagytuk.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES kulcsmappa
+15002
+Devkit 3DS AES kulcsmappa
+15003
+Visszaállítás alapértelmezettre
+15004
+Mappa megnyitása
+15005
+Retail 3DS AES kulcsmappa kiválasztása
+15006
+Devkit 3DS AES kulcsmappa kiválasztása

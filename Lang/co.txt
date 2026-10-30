@@ -246,6 +246,8 @@ Affissà e linee &quadrittate
 Apre un elementu cù un cliccu simplice
 Modu di selezzione &alternativa
 Impiegà pagine &maiò di memoria
+2600
+Keystone
 2900
 Apprupositu di 7-Zip CTR
 7-Zip CTR hè un prugramma liberu.
@@ -533,4 +535,16 @@ Quantità massima di memoria RAM chì hè permessa per scumprime l’archivii :
 U spacchittime d’archiviu hè statu tralasciatu.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

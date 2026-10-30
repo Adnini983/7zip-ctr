@@ -3,9 +3,10 @@
 在 **7-Zip 26.04** 基础上加入对任天堂 3DS / New Nintendo 3DS 容器格式的只读
 挂载与解包支持，把 GodMode9 / ctrtool 的解包能力移植为 7-Zip 的一个 archive
 handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——所有密钥由用户从
-自己的实机提取后放入与 `7z.dll` 同目录的 `3dskey\` 与 `3dskey_dev\` 文件夹。
+自己的实机提取后放入与 `7z.dll` 同目录的 `keystone\ctraes_retail\` 与
+`keystone\ctraes_dev\` 文件夹；目录位置可在 `keystone.ini` 中自定义。
 
-- **版本**：`26.04-CTR01`
+- **版本**：`26.04-CTR02`
 - **构建目标**：Windows x64（`7z.dll` / `7z.exe` / `7zFM.exe` / `7zG.exe` / `7-zip.dll`）
 - **许可**：见 [许可](#许可) 一节
 
@@ -39,43 +40,62 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
   展开得到的 `.cia` 收进专用 `Contents/` 子目录，两种场景都按 16 位补零
   `<titleid>.cia` 命名（独立抽出时从 ticket 段 ticket+0x1DC 读明文 title id，
   不依赖兄弟 CupList）；修复了运行时头部越界导致的错误展开。
-- **密钥外置**（零硬编码）：
-  - `3dskey\`（零售机）
-  - `3dskey_dev\`（开发机）
+- **密钥外置**（零硬编码），默认目录（相对 `7z.dll` 所在目录）：
+  - `keystone\ctraes_retail\`（零售机）
+  - `keystone\ctraes_dev\`（开发机）
   - 每个文件为文本格式：`KeyName=<32 位 hex>`
+  - 发布包在 `7z.dll` 同目录附带 `keystone.ini` 模板（留空=默认），键名为
+    `RetailCTRAESKeyDir=` / `DevCTRAESKeyDir=`；目录位置可编辑该文件，也可在
+    `7zFM.exe` 的「选项 → 密钥库（Keystone）」页里浏览指定，每行带「打开文件夹」
+    按钮（见 [docs/KEYS.md](docs/KEYS.md)）
 - **dev / retail 自动判定**：对 NCCH 数据区用候选 keyX 试解 ExeFS 头，
   能解出者选中并记住单元类型
 - **开发机 CTR SystemUpdater `.csu` 全链解密**：ExeFS + RomFS 全部展开
+- **本机 NAND 备份镜像挂载**：打开自己机器的 `nand.bin`，从
+  `keystone\ctrdevice\<SN>\` 设备档案（boot9 + OTP + NAND CID）在本机派生密钥，
+  自动匹配设备并流式解密列出 TWL（slot0x03，DSi keyscrambler）、CTRNAND
+  （Old slot0x04 / New slot0x05）、Firm0/Firm1（slot0x06）、AGB_Save（slot0x07）。
+  机器独有材料全部留在本地，程序不落盘任何派生密钥（见 [docs/NAND.md](docs/NAND.md)）。
+  未建设备档案时也可直接把 boot9/OTP/nand_cid 放在 nand.bin 同目录：7zFM 弹窗询问
+  零售/开发与 Old/New（开发为 CTR/SNAKE），命令行用 `-unit`/`-type`/`-slot` 指定。
 
 ### ◐ 部分实现 / 已知限制
 
-- **密钥必须外置**：程序启动时若缺少 `3dskey\` / `3dskey_dev\` 或对应密钥，
-  加密内容无法解密（这是设计，见 [密钥](docs/KEYS.md)）。
+- **密钥必须外置**：程序启动时若缺少密钥目录（默认 `keystone\ctraes_retail\` /
+  `keystone\ctraes_dev\`）或对应密钥，加密内容无法解密（这是设计，见 [密钥](docs/KEYS.md)）。
 - **CDN 散 content / TMD（元数据浏览）**：可打开 NUS 直抓的 `tmd.<n>`，解析并
   列出 title id、版本、content 数量与各 content 大小/索引（`Contents/` 目录）。
   CDN content 外层为 TitleKey-AES-CBC，**必须配合 ticket（`.tik`/`.cetk`）才能解密**；
   仅有 TMD 时只做元数据展示，密文不解密（ticket 自动解密位已预留）。
 - **DSiWare（TWL SRL / `.nds`）未实现**：00048xxx 标题走 DSi 固定密钥与独立
   SRL 格式，不在本版范围。
+- **NAND TWL 分区（slot0x03）已解密为整段虚拟镜像**：由加密 OTP 前 8 字节 +
+  固定 DSi KeyY + nand_cid 经 DSi keyscrambler 派生，无需额外实机导出；但解出的
+  twln（FAT16）/ twlp（FAT12）内部目录遍历与 DSiWare title 自身加密层尚未展开。
+  NAND 设备档案（boot9/OTP/NAND CID）为机器特有，需自备，见 [docs/NAND.md](docs/NAND.md)。
 - 个别异常 header 的 ROM 可能无法解密，属样本本身问题。
 - GM9 密钥提取脚本（`gm9tools\DumpKeysCTR.gm9`）需在实机上运行，无实机无法在此验证。
 
 ### ❌ 未实现
 
 - 容器写入 / 重新加密 / 导出。
-- NAND / eMMC 整卡镜像挂载。
+- NAND 整卡写回；TWL 分区内部 twln/twlp 目录遍历与 DSiWare 加密层展开。
 
 ---
 
 ## 快速使用
 
 1. 从你的实机提取密钥（见 [docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md)），
-   放入 `7z.dll` 同目录的 `3dskey\` / `3dskey_dev\`。
+   放入 `7z.dll` 同目录的 `keystone\ctraes_retail\` / `keystone\ctraes_dev\`
+   （目录位置可在 `keystone.ini` 或「选项 → 密钥库（Keystone）」中改）。
 2. 将 `seeddb.bin`（`3ds\seeddb.bin`，零售机）放在与 `7z.dll` 同目录。
 3. 用 `7zFM.exe` 或 `7z.exe` 打开 `.cia` / `.csu` / `.3ds` / `.cci` 等文件。
+4. （可选，NAND 备份）把设备档案放进 `keystone\ctrdevice\<SN>\` 后即可直接打开
+   本机 `nand.bin`，见 [docs/NAND.md](docs/NAND.md)。
 
 详细说明见 [docs/USAGE.md](docs/USAGE.md)、[docs/KEYS.md](docs/KEYS.md)、
-[docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md)、[docs/BUILD.md](docs/BUILD.md)。
+[docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md)、[docs/NAND.md](docs/NAND.md)、
+[docs/BUILD.md](docs/BUILD.md)。
 
 ---
 
@@ -109,8 +129,9 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 **密钥合规说明**：本仓库**不附带任何密钥材料**。解密所需的 AES 密钥可从
 **已公开的 3DS 研究材料**中获得（例如公开流传的 keydata 集合），或由用户
 从自己的实机提取（见 [docs/EXTRACT_KEYS.md](docs/EXTRACT_KEYS.md) 与
-[gm9tools](gm9tools/)）。各机器唯一、且不宜公开分发的密钥（`movable.sed`、
-OTP、console-unique 等）**不会随仓库或 Release 分发**，必须由用户自行提取。
+[gm9tools](gm9tools/)）。各机器唯一、且不宜公开分发的密钥（`movable.sed`、OTP、console-unique、
+以及 NAND 设备档案 `keystone\ctrdevice\` 里的 boot9/OTP/NAND CID）**不会随仓库
+或 Release 分发**，必须由用户自行提取并只保存在本地。
 Release 包仅附带已在公开研究材料中广泛流传、无争议的固定 AES 密钥。
 
 ---

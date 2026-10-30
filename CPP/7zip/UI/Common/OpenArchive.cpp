@@ -1958,6 +1958,16 @@ HRESULT CArc::OpenStream2(const COpenOptions &op)
         continue;
       
       HRESULT result;
+      // 7-Zip CTR: publish the archive absolute path so the dll NAND handler can
+      // find per-device key material next to nand.bin when ctrdevice has no match.
+      if (!op.filePath.IsEmpty())
+      {
+        wchar_t wFull[2048];
+        if (GetFullPathNameW(op.filePath.Ptr(), 2048, wFull, NULL) > 0)
+          SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", wFull);
+      }
+      // FM host: mark GUI so the handler may prompt (7z.exe console must never block).
+      SetEnvironmentVariableW(L"Z7CTR_GUI", L"1");
       if (op.stream)
       {
         UInt64 searchLimit = (!exactOnly && searchMarkerInHandler) ? maxStartOffset: 0;
@@ -1971,7 +1981,9 @@ HRESULT CArc::OpenStream2(const COpenOptions &op)
           return E_NOTIMPL;
         result = openSeq->OpenSeq(op.seqStream);
       }
-      
+      SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_GUI", NULL);
+
       RINOK(ReadBasicProps(archive, 0, result))
       
       if (result == S_FALSE)
@@ -2224,6 +2236,15 @@ HRESULT CArc::OpenStream2(const COpenOptions &op)
       
       PRF(printf("\nSorted Open %S", (const wchar_t *)ai.Name));
       HRESULT result;
+      // 7-Zip CTR: publish absolute path for the dll NAND handler's fallback lookup.
+      if (!op.filePath.IsEmpty())
+      {
+        wchar_t wFull[2048];
+        if (GetFullPathNameW(op.filePath.Ptr(), 2048, wFull, NULL) > 0)
+          SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", wFull);
+      }
+      // FM host: mark GUI so the handler may prompt (7z.exe console must never block).
+      SetEnvironmentVariableW(L"Z7CTR_GUI", L"1");
       {
         UInt64 searchLimit = 0;
         /*
@@ -2236,6 +2257,8 @@ HRESULT CArc::OpenStream2(const COpenOptions &op)
             !mode.CanReturnArc, // needPhySize
             op.stream, &searchLimit, op.callback, extractCallback_To_OpenCallback);
       }
+      SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", NULL);
+      SetEnvironmentVariableW(L"Z7CTR_GUI", NULL);
       
       if (result == S_FALSE)
       {

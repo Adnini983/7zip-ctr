@@ -202,6 +202,8 @@ Sanskrit, Indian, हिन्दुस्तानं
 वस्तु अनावृताय एकं ही(सिंगल)-क्लिकम्
 &वैकल्पिक चयनं स्थिति
 &विशाल् स्मृति पृष्ठस्य प्रयोगं कुरु
+2600
+Keystone
 2900
 7-जिप विषय
 7-जिपं एतत निःशुल्क सॉफ़्टवेयर अस्ति.
@@ -404,4 +406,16 @@ Sanskrit, Indian, हिन्दुस्तानं
 पास:
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

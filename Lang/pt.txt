@@ -246,6 +246,8 @@ Mostrar as linhas da &grelha
 Clique uma vez para abrir um item
 Modo de seleçção &alternativo
 Utilizar páginas de &memória grandes
+2600
+Keystone
 2900
 Acerca do 7-Zip CTR
 O 7-Zip CTR é um programa gratuito.
@@ -533,4 +535,16 @@ Quantidade máxima de utilização de memória RAM permitida para descompactar a
 A descompactação do arquivo foi ignorada.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Pasta de chaves AES do 3DS Retail
+15002
+Pasta de chaves AES do 3DS Devkit
+15003
+Redefinir para padrão
+15004
+Abrir pasta
+15005
+Selecionar a pasta de chaves AES do 3DS Retail
+15006
+Selecionar a pasta de chaves AES do 3DS Devkit

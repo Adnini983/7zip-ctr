@@ -1,0 +1,47 @@
+# ---- 机器私有密钥与设备档案（绝不入库）----
+# 零售/开发机 AES 密钥目录（含 .key 文本）
+keystone/ctraes_retail/
+keystone/ctraes_dev/
+# NAND 设备档案：boot9 / OTP / NAND CID / 本机派生材料
+keystone/ctrdevice/
+**/ctrdevice/
+# 通用私有材料
+*.key
+otp.mem
+otp_dec.mem
+otp.bin
+otp_dec.bin
+boot9.bin
+nand_cid.mem
+nand_cid.bin
+movable.sed
+aeskeydb.bin
+aes_keys.txt
+# seeddb.bin 属第三方数据，默认不入库（需要时由用户本地放置）
+seeddb.bin
+
+# ---- 构建产物（CI 产出，不入库）----
+# 仅排除各工程编译输出目录；Asm/x86、Asm/x64 是官方汇编源码，必须保留
+CPP/7zip/Bundles/**/x64/
+CPP/7zip/Bundles/**/x86/
+CPP/7zip/UI/**/x64/
+CPP/7zip/UI/**/x86/
+C/Util/7zipInstall/x64/
+C/Util/7zipInstall/x86/
+*.obj
+*.res
+*.pdb
+*.ilk
+*.exp
+*.exe
+*.dll
+*.lib
+*.log
+build/
+out/
+
+# 本地研究脚本与密钥推导材料（不入库）
+research_pyctr/
+NATIVE_FIRM/
+**/NATIVE_FIRM/
+keystone.cache

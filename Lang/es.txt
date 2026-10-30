@@ -246,6 +246,8 @@ Mostrar líneas de &cuadrícula
 Un solo clic para abrir un elemento
 Modo de selección &alternativo
 Usar páginas &grandes de memoria
+2600
+Keystone
 2900
 Acerca de 7-Zip CTR
 7-Zip CTR es software libre.
@@ -533,4 +535,16 @@ Cantidad máxima de memoria RAM permitida para descomprimir archivos comprimidos
 Se ha omitido la descompresión del archivo comprimido.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Carpeta de claves AES de 3DS Retail
+15002
+Carpeta de claves AES de 3DS Devkit
+15003
+Restablecer valores predeterminados
+15004
+Abrir carpeta
+15005
+Seleccionar la carpeta de claves AES de 3DS Retail
+15006
+Seleccionar la carpeta de claves AES de 3DS Devkit

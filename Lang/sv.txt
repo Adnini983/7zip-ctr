@@ -244,6 +244,8 @@ Visa &stödlinjer
 Enkelklick för att öppna objekt
 &Alternativt markeringsläge
 Använd &stora minnessidor
+2600
+Keystone
 2900
 Om 7-Zip CTR
 7-Zip CTR är fri och gratis programvara.
@@ -514,4 +516,16 @@ Symbolisk kataloglänk
 Katalogknutpunkt
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Mapp med Retail-3DS-AES-nycklar
+15002
+Mapp med Devkit-3DS-AES-nycklar
+15003
+Återställ till standard
+15004
+Öppna mapp
+15005
+Välj mapp med Retail-3DS-AES-nycklar
+15006
+Välj mapp med Devkit-3DS-AES-nycklar

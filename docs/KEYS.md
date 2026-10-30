@@ -5,10 +5,15 @@
 
 ## 1. 目录与文件格式
 
+默认目录（相对 `7z.dll` 所在目录，可用 `keystone.ini` 改，见第 2 节）：
+
 ```
 <7z.dll 所在目录>\
-   3dskey\           零售机密钥
-   3dskey_dev\       开发机密钥
+   keystone\
+      ctraes_retail\     零售机密钥
+      ctraes_dev\        开发机密钥
+      ctrdevice\<SN>\   （可选）本机 NAND 设备档案，机器特有、仅本地，见 NAND.md
+   keystone.ini          （可选）自定义上面两个密钥目录的位置
 ```
 
 每个密钥一个文件，纯文本，一行：
@@ -17,7 +22,7 @@
 KeyName=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   # 32 位十六进制（16 字节）
 ```
 
-示例 `3dskey\slot0x2CKeyX.key`：
+示例 `keystone\ctraes_retail\slot0x2CKeyX.key`：
 
 ```
 slot0x2CKeyX=510207515507CBB18E243DCB85E23A1D
@@ -26,21 +31,45 @@ slot0x2CKeyX=510207515507CBB18E243DCB85E23A1D
 文件名大小写不敏感（handler 会归一化为小写字母数字）。
 例如 `slot0x2CKeyX.key`、`slot0x2ckeyx.key`、`SLOT0X2CKEYX.key` 均视为同一个。
 
-## 2. handler 实际读取哪些密钥
+## 2. 自定义密钥目录（keystone.ini）
+
+默认目录即上面的 `keystone\ctraes_retail\` 与 `keystone\ctraes_dev\`。
+发布包已在 `7z.dll` 同目录附带一份 `keystone.ini` 模板（两个键留空即走默认）。
+想把密钥放到别处（例如外置盘、集中管理目录），直接编辑该文件填入路径：
+
+```ini
+[Keystone]
+RetailCTRAESKeyDir=D:\3ds-keys\retail
+DevCTRAESKeyDir=D:\3ds-keys\dev
+DeviceDataDir=D:\3ds-keys\ctrdevice
+```
+
+- `RetailCTRAESKeyDir`：零售机密钥目录；`DevCTRAESKeyDir`：开发机密钥目录；
+  `DeviceDataDir`：本机 NAND 设备唯一数据目录（默认 `keystone\ctrdevice`，见 NAND.md）。
+- 填**绝对路径**（`D:\…`、`\\server\share\…`）直接使用。
+- 填**相对路径**时，相对 `7z.dll` 所在目录解析；留空（或删掉该键）
+  回落到默认的 `keystone\ctraes_retail` / `keystone\ctraes_dev` / `keystone\ctrdevice`。
+- 也可以在 `7zFM.exe` 里用「选项 → 密钥库（Keystone）」页直接浏览指定，
+  每行右侧有浏览「…」与打开文件夹按钮；点「恢复默认值」即恢复默认并清空对应键；
+  保存时由程序写回本文件。
+
+> `seeddb.bin` 的位置不受本配置影响，始终读取 `7z.dll` 同目录。
+
+## 3. handler 实际读取哪些密钥
 
 | 密钥文件 | 用途 |
 |---|---|
-| `slot0x2CKeyX.key` | NCCH 原始加密（ncchflag=0），`3dskey` + `3dskey_dev` 各一份 |
+| `slot0x2CKeyX.key` | NCCH 原始加密（ncchflag=0），`ctraes_retail` + `ctraes_dev` 各一份 |
 | `slot0x%02XKeyX.key` | 其他 NCCH crypto（如 0x18 / 0x1B / 0x25，New3DS 7x/Secure3/4） |
 | `common0..common5` | 零售机 common key（ticket 解密 title key） |
 | `common0N..common5N` | 开发机 / New3DS common key（dev 用） |
 | `slot0x3DKeyX.key` | 零售机 Old3DS title key 派生 |
 | `seeddb.bin`（可选，放在 build 目录） | seed 加密 RomFS 派生 keyY |
 
-> 你放入的 `3dskey` 可以远多于上面这些（例如完整的 keyslot 转储），
+> 你放入的密钥目录可以远多于上面这些（例如完整的 keyslot 转储），
 > handler 只取它需要的那几个，多余的无害。
 
-## 3. seeddb.bin
+## 4. seeddb.bin
 
 seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能派生
 正确的 keyY。`N3dsHandler` 读取与 `7z.dll` 同目录的 `seeddb.bin`
@@ -51,7 +80,7 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 - 开发机的 seeddb.bin 目前 GodMode9 仍无法自动导出——
   见 [EXTRACT_KEYS.md](EXTRACT_KEYS.md) 的说明。
 
-## 4. 密钥来源与分类（重要）
+## 5. 密钥来源与分类（重要）
 
 本仓库**不附带任何密钥材料**；Release 包仅附带**已在公开研究材料中广泛流传、
 无争议的固定 AES 密钥**（common keydata）。其余密钥从已公开的 3DS 研究材料
@@ -72,7 +101,7 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 > 但从分发安全角度，本 fork 仍只把 **common keydata** 随 Release 附带，
 > 机器特有条目（movable.sed、OTP、0x04..0x2B）留在本地，不随任何公开分发。
 
-## 5. 用工具自动分类与生成
+## 6. 用工具自动分类与生成
 
 实机导出与转换请用：
 
@@ -82,6 +111,8 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 - `gm9tools\aeskeys2ctr.bat`（无需 Python，用系统自带 PowerShell）
   或等价的 `gm9tools\aeskeys2ctr.py` —— 在电脑上把 GodMode9 的
   `aes_keys.txt` / `aeskeydb.bin` / 导出的 `slot0x*.bin`
-  转换成 `3dskey\` 与 `3dskey_dev\` 文本格式，并自动分类；两者参数与输出一致。
+  转换成 `keystone\ctraes_retail\` 与 `keystone\ctraes_dev\` 文本格式，
+  并自动分类；两者参数与输出一致。把生成的整个 `keystone\` 目录
+  拷到 `7z.dll` 同目录即可（或在 `keystone.ini` / 「选项 → 密钥库（Keystone）」里指向别处）。
 
 详见 [EXTRACT_KEYS.md](EXTRACT_KEYS.md)。

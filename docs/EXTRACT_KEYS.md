@@ -1,7 +1,7 @@
 # 实机提取 AES 密钥（docs/EXTRACT_KEYS.md）
 
 本 fork 不打包任何密钥。下面是**从你自己的 3DS / 开发机**提取密钥、
-并转成 `3dskey\` / `3dskey_dev\` 文本格式的完整流程。
+并转成 `keystone\ctraes_retail\` / `keystone\ctraes_dev\` 文本格式的完整流程。
 
 > 只需解密你自己合法拥有的 ROM。请勿把机器特有密钥上传公开仓库。
 
@@ -46,8 +46,8 @@
 
 ## 电脑端转换：`aeskeys2ctr`
 
-把 GodMode9 的输出统一转成 handler 的 `3dskey\` / `3dskey_dev\` 文本格式，
-并再次按可上传 / 不可上传分类。提供两个等价工具，**二选一**：
+把 GodMode9 的输出统一转成 handler 的 `keystone\ctraes_retail\` /
+`keystone\ctraes_dev\` 文本格式，并再次按可上传 / 不可上传分类。提供两个等价工具，**二选一**：
 
 - `gm9tools\aeskeys2ctr.bat` —— **无需 Python**，调用系统自带 PowerShell，
   适合没有 Python 环境的 Windows；
@@ -59,7 +59,7 @@
 rem --- BAT 版（无需 Python）---
 gm9tools\aeskeys2ctr.bat <aes_keys.txt> --out <输出目录>
 
-rem 开发机 dump 用 --devkit（pub 全部进 3dskey_dev\）
+rem 开发机 dump 用 --devkit（pub 全部进 keystone\ctraes_dev\）
 gm9tools\aeskeys2ctr.bat <devkit_aes_keys.txt> --out <输出目录> --devkit
 
 rem 可选：确认所有 keyX 与公开值一致时全公开（--all-pub）
@@ -79,9 +79,10 @@ python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 
 ```
 <输出目录>\
-   3dskey\          零售机可上传 -> 复制到 7z.dll 同目录
-   3dskey_dev\      开发机可上传 -> 复制到 7z.dll 同目录
-   3dskey_private\  机器特有（勿上传 / 勿分发）
+   keystone\
+      ctraes_retail\ 零售机可上传 -> 复制到 7z.dll 同目录
+      ctraes_dev\     开发机可上传 -> 复制到 7z.dll 同目录
+   keystone_private\  机器特有（勿上传 / 勿分发）
 ```
 
 ## 最终放置
@@ -90,12 +91,14 @@ python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 
 ```
 build\7z.dll
-build\3dskey\*.key
-build\3dskey_dev\*.key
+build\keystone\ctraes_retail\*.key
+build\keystone\ctraes_dev\*.key
 build\seeddb.bin       （途径 A 生成的 seeddb，可选）
 ```
 
-> 7z.dll 换位置时，`3dskey` / `3dskey_dev` / `seeddb.bin` 要一起搬。
+> 7z.dll 换位置时，`keystone\ctraes_retail` / `keystone\ctraes_dev` /
+> `seeddb.bin` 要一起搬；也可在 `keystone.ini` 或「选项 → 密钥库（Keystone）」里
+> 把目录指到固定位置，免去跟随移动。
 
 ---
 
@@ -121,13 +124,17 @@ A：它们是 console-unique key 的来源（每台机器不同）。
 这些通常不用于解密 ROM（ROM 用的是 common keydata），但保留它们
 可解锁 NAND / SD 数据。
 
+> 若要在本工具里直接挂载本机 NAND 备份，需要单独准备 boot9 / OTP / NAND CID
+> 组成的设备档案，放在 `keystone\ctrdevice\<SN>\`，清单与字段见
+> [NAND.md](NAND.md)；这些材料同样只留本地，不上传、不分发。
+
 **Q：`K:` 盘是空的？**
 A：说明 SD 根目录没有 `aeskeydb.bin`，或 GodMode9 版本未自动挂载。
 放入 aeskeydb.bin 后重启 GodMode9，在文件浏览器里应看到 `[K:]`。
 
 ## 可上传 / 不可上传清单（最终核对）
 
-上传前核对：`3dskey\` 与 `3dskey_dev\` 里**不应出现**下列文件名：
+上传前核对：`keystone\ctraes_retail\` 与 `keystone\ctraes_dev\` 里**不应出现**下列文件名：
 
 - `slot0x04KeyX` … `slot0x2BKeyX`（console-unique keyX）
 - `movable.sed`、`otp.bin` 等派生文件

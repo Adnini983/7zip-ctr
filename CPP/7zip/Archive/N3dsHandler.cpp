@@ -2,15 +2,18 @@
 // Nintendo 3DS container formats: CIA, NCSD (.3ds), NCCH (CXI/CFA), ExeFS, RomFS.
 // Read-only archive handler for 7-Zip (inspired by 7-Zip ZS codec integration).
 
+#define _CRT_SECURE_NO_WARNINGS
 #include "StdAfx.h"
 
 #pragma warning(disable: 4324)   // align specifier padding in CHandler
 
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "../../../C/CpuArch.h"
 #include "../../../C/Aes.h"
 #include "../../../C/Sha256.h"
+#include "../../../C/Sha1.h"
 
 #include "../../Common/ComTry.h"
 #include "../../Common/IntToString.h"
@@ -49,6 +52,8 @@ struct CItem
   UInt64 InnerBase;       // absolute offset of the NCCH region start (ExeFS/RomFS base)
   UInt64 InnerOff;        // byte offset from region start where the region's counter starts
   bool Virtual;           // metadata-only placeholder (CDN TMD content listing); no embedded bytes
+  bool StreamCtr;         // NAND partition: bulk sequential AES-CTR from absolute offset
+  bool StreamTwl;         // TWL (slot0x03) partition: DSi-scrambler AES-CTR + per-block reversal
   UInt64 GetSize() const { return Size; }
 };
 
@@ -65,6 +70,7 @@ struct CN3dsInfo
   bool IsTmd() const { return Container == 4; }
   bool IsRomfs() const { return Container == 5; }
   bool IsExefs() const { return Container == 6; }
+  bool IsFirm() const { return Container == 7; }
 
   // ---- CDN TMD (title metadata) ----
   char   Issuer[0x41];           // signing issuer string, e.g. Root-CA00000003-CP0000000b
@@ -93,6 +99,7 @@ struct CN3dsInfo
   // ---- NCSD header (0x100) ----
   UInt64 MediaId;                // 0x108 (card title id)
   UInt32 NumPartitions;
+  bool TwlFailed;                // NAND: TWL (slot0x03) key could not be derived
 
   // ---- NCCH header (0x100) ----
   UInt64 NcchTitleId;            // 0x108
@@ -105,6 +112,16 @@ struct CN3dsInfo
   UInt32 SeedIndex;              // 0x1BC
   UInt64 ExeFsOff, ExeFsSize;    // 0x198
   UInt64 RomFsOff, RomFsSize;    // 0x1A0
+
+  // ---- FIRM (standalone .firm: NATIVE/SAFE_MODE/TWL/AGB/homebrew) ----
+  // signature state: 0=unknown/not-verified, 1=valid (official), 2=sighax/homebrew,
+  // 3=corrupt/missing
+  int    FirmSigState;
+  int    FirmSectionsOk;         // sections whose embedded SHA-256 matched
+  int    FirmSectionsTotal;
+  UInt32 FirmArm9Entry;         // header+0x00C
+  UInt32 FirmArm11Entry;        // header+0x008
+  char   FirmKind[24];          // heuristic label: NATIVE / SAFE_MODE / TWL / AGB / HOMEBREW
 
   void Clear() { memset(this, 0, sizeof(*this)); Container = 0; }
 };
@@ -166,10 +183,14 @@ static UString ReadAscii(const Byte *p, unsigned n)
 
 // ----------------------------------------------------------------
 // External 3DS keys - NEVER hardcoded.
-// Loaded from <7z.dll dir>\3dskey\*.key      (retail)
-//              <7z.dll dir>\3dskey_dev\*.key (developer)
-// Each file holds a single key as text:  "KeyName=XXXXXXXX...XXXX" (32 hex chars).
-// See https://www.3dbrew.org/wiki/AES_Registers for keyslot semantics.
+// Default folders (next to 7z.dll, overridable in keystone.ini):
+//   <7z.dll dir>\keystone\ctraes_retail\*.key  (retail)
+//   <7z.dll dir>\keystone\ctraes_dev\*.key     (developer)
+// Custom folders are set in <7z.dll dir>\keystone.ini, section [Keystone],
+// keys RetailCTRAESKeyDir= / DevCTRAESKeyDir=; absolute paths are used as-is,
+// relative paths resolve against the 7z.dll directory. Each key file holds one
+// key as text:
+// "KeyName=XXXXXXXX...XXXX" (32 hex chars). See 3dbrew AES_Registers.
 // ----------------------------------------------------------------
 static UString GetDllDirectory()
 {
@@ -186,6 +207,54 @@ static UString GetDllDirectory()
   if (pos < 0)
     return UString();
   return path.Left(pos);
+}
+
+// ---- keystone.ini: optional custom key folders ---------------------------
+static bool KeystoneIsAbsPath(const UString &s)
+{
+  if (s.Len() >= 2 && s[1] == L':') return true;            // drive:
+  if (s.Len() >= 2 && s[0] == L'\\' && s[1] == L'\\') return true; // UNC
+  return false;
+}
+
+// drop leading/trailing whitespace, surrounding quotes and a trailing backslash
+static UString KeystoneSimplify(const UString &v)
+{
+  unsigned i = 0, n = v.Len();
+  while (i < n)
+  {
+    wchar_t c = v[i];
+    if (c != L' ' && c != L'\t' && c != L'"') break;
+    i++;
+  }
+  unsigned j = n;
+  while (j > i)
+  {
+    wchar_t c = v[j - 1];
+    if (c != L' ' && c != L'\t' && c != L'"' && c != L'\\') break;
+    j--;
+  }
+  return v.Mid(i, j - i);
+}
+
+static UString ReadKeystoneIni(const UString &dllDir, const wchar_t *key)
+{
+  wchar_t buf[MAX_PATH] = { 0 };
+  UString ini = dllDir + UString(L"\\keystone.ini");
+  GetPrivateProfileStringW(L"Keystone", key, L"", buf, MAX_PATH, ini.Ptr());
+  return UString(buf);
+}
+
+// empty config -> built-in default relative folder; absolute used as-is;
+// relative resolves against the 7z.dll directory.
+static UString ResolveKeystoneDir(const UString &dllDir, const UString &cfg, const wchar_t *defRel)
+{
+  UString v = KeystoneSimplify(cfg);
+  if (v.IsEmpty())
+    return dllDir + UString(L"\\") + defRel;
+  if (KeystoneIsAbsPath(v))
+    return v;
+  return dllDir + UString(L"\\") + v;
 }
 
 static Byte HexToByte(wchar_t c)
@@ -219,6 +288,11 @@ struct CKeyEntry
   Byte Data[16];
   bool IsDev;
 };
+
+// forward declarations; implemented in the unified-cache section below
+static UInt64 DirSig64(const UString &dir, const wchar_t *pattern);
+static bool KeystoneCacheSigPresent(Byte type, UInt64 sig);
+static void KeystoneCacheAppendKey(const UString &name, const Byte data[16], bool isDev, UInt64 sig);
 
 class C3dsKeys
 {
@@ -343,8 +417,33 @@ public:
     UString dll = GetDllDirectory();
     if (dll.IsEmpty())
       return;
-    LoadDir(dll + UString(L"\\3dskey"), false);
-    LoadDir(dll + UString(L"\\3dskey_dev"), true);
+    UString retailDir = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"RetailCTRAESKeyDir"), L"keystone\\ctraes_retail");
+    UString devDir   = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DevCTRAESKeyDir"),    L"keystone\\ctraes_dev");
+    LoadDir(retailDir, false);
+    LoadDir(devDir, true);
+
+    // persist the loaded AES keys into the single obfuscated cache file;
+    // skip a folder whose records are already cached (sig unchanged) to avoid bloat
+    UInt64 retailSig = DirSig64(retailDir, L"*.key");
+    UInt64 devSig   = DirSig64(devDir,   L"*.key");
+    bool haveRetail = KeystoneCacheSigPresent(1, retailSig);
+    bool haveDev    = KeystoneCacheSigPresent(1, devSig);
+    for (unsigned i = 0; i < _keys.Size(); i++)
+    {
+      const CKeyEntry &e = _keys[i];
+      if (e.IsDev ? haveDev : haveRetail)
+        continue;
+      KeystoneCacheAppendKey(e.Name, e.Data, e.IsDev, e.IsDev ? devSig : retailSig);
+    }
+  }
+
+  // Drop the process-static key table; next EnsureLoaded() re-enumerates the folders.
+  void Invalidate()
+  {
+    _loaded = false;
+    _keys.Clear();
+    _retail = 0;
+    _dev = 0;
   }
 
   // name must already be normalized (lowercase alphanumeric); isDev selects the dev/retail table
@@ -583,6 +682,86 @@ static void AesCtr_Decode3ds(const Byte *key, const Byte *ctr128, UInt64 offByte
   }
 }
 
+// ---- TWL (slot0x03, DSi NAND) -------------------------------------------
+// DSi keyscrambler (different from the 3DS formula):
+//   NormalKey = ROL128( (KeyX_int XOR KeyY_int) + C2, 42 )
+// KeyX/KeyY are 128-bit integers read LITTLE-endian; the result is emitted
+// BIG-endian as the AES normal key. C2 = 0xFFFEFB4E295902582A680F5F1A4F3E79.
+// kxBytes16 is KeyX already laid out as a LE-128 memory image (lo4 + fixed8 + hi4).
+static UInt64 ReadLe64(const Byte *p)
+{
+  return (UInt64)p[0]
+      | ((UInt64)p[1] << 8) | ((UInt64)p[2] << 16) | ((UInt64)p[3] << 24)
+      | ((UInt64)p[4] << 32) | ((UInt64)p[5] << 40) | ((UInt64)p[6] << 48)
+      | ((UInt64)p[7] << 56);
+}
+
+static void WriteBe64(Byte *p, UInt64 v)
+{
+  p[0]=(Byte)(v>>56); p[1]=(Byte)(v>>48); p[2]=(Byte)(v>>40); p[3]=(Byte)(v>>32);
+  p[4]=(Byte)(v>>24); p[5]=(Byte)(v>>16); p[6]=(Byte)(v>>8);  p[7]=(Byte)(v);
+}
+
+static void CDsiNormalKey(Byte nk[16], const Byte *kxBytes16, bool dev)
+{
+  const UInt64 C2hi = (UInt64)0xFFFEFB4E29590258ull;
+  const UInt64 C2lo = (UInt64)0x2A680F5F1A4F3E79ull;
+  // fixed KeyY literal integers (high64, low64)
+  UInt64 kyh, kyl;
+  if (dev)
+  { kyh=(UInt64)0xE1A00005266A6497ull; kyl=(UInt64)0x66E8B87AF176BFAAull; }
+  else
+  { kyh=(UInt64)0xE1A00005202DDD1Dull; kyl=(UInt64)0xBD4DC4D30AB9DC76ull; }
+
+  UInt64 kxh = ReadLe64(kxBytes16 + 8);
+  UInt64 kxl = ReadLe64(kxBytes16);
+
+  UInt64 th = kxh ^ kyh;
+  UInt64 tl = kxl ^ kyl;
+  UInt64 sl = tl + C2lo;
+  UInt64 carry = (sl < tl) ? (UInt64)1 : (UInt64)0;
+  UInt64 sh = th + C2hi + carry;
+
+  // ROL 42 over the 128-bit SUM (sh:sl), not the pre-add XOR (sh:tl)
+  UInt64 nh = (sh << 42) | (sl >> 22);
+  UInt64 nl = (sl << 42) | (sh >> 22);
+
+  WriteBe64(nk, nh);
+  WriteBe64(nk + 8, nl);
+}
+
+// TWL AES-CTR: same BE counter progression as 3DS CTR, but every 16-byte block
+// reverses its bytes before feeding the stream and reverses the output block
+// (DSi endianness). Equivalent to out[j] = in[j] XOR AES_enc(ctr)[15-j].
+static void AesCtr_DecodeTwl(const Byte *key, const Byte *ctr128, UInt64 offBytes, Byte *data, size_t size)
+{
+  __declspec(align(16)) UInt32 aes[AES_NUM_IVMRK_WORDS];
+  Byte ctr[16];
+  memcpy(ctr, ctr128, 16);
+  UInt32 blockAdd = (UInt32)(offBytes >> 4);
+  UInt32 byteOff  = (UInt32)(offBytes & 15);
+  AddCtrBe(ctr, blockAdd);
+  Aes_SetKey_Enc(aes + 4, key, 16);
+  size_t pos = 0;
+  bool first = true;
+  while (pos < size)
+  {
+    __declspec(align(16)) Byte blk[16];
+    memcpy(blk, ctr, 16);
+    memset(aes, 0, 16);
+    g_AesCbc_Encode(aes, blk, 1);   // blk = AES_enc(ctr), used reversed as keystream
+    size_t from = first ? byteOff : 0;
+    size_t take = 16 - from;
+    if (take > size - pos)
+      take = size - pos;
+    for (size_t j = 0; j < take; j++)
+      data[pos + j] ^= blk[15 - (from + j)];
+    pos += take;
+    first = false;
+    AddCtrBe(ctr, 1);
+  }
+}
+
 // SHA256(sig16 || seed16) -> first 16 bytes (seed key Y).
 static void NcchSeedKeyY(Byte keyY[16], const Byte *sig16, const Byte *seed)
 {
@@ -597,7 +776,1186 @@ static void NcchSeedKeyY(Byte keyY[16], const Byte *sig16, const Byte *seed)
   memcpy(keyY, dg, 16);
 }
 
-Z7_CLASS_IMP_CHandler_IInArchive_0
+// ----------------------------------------------------------------
+// ctrdevice: console-unique NAND key material loaded from
+//   <dll>\keystone\ctrdevice\<SN>\  (boot9.bin, otp.mem / otp_dec.mem,
+//   nand_cid.mem or nandcidhex, ctrindex.ini).
+// Derives slot0x04-0x07 normalkeys through the boot9 keyinit and the
+// CTRNAND AES-CTR nonce = SHA256(nand_cid)[0:16]. No per-device key is
+// hardcoded here. slot0x03 (TWL, DSi NAND) is derived separately in
+// CDsiNormalKey from the encrypted OTP first 8 bytes + a fixed DSi KeyY
+// via the DSi keyscrambler, with a per-block-reversed AES-CTR counter =
+// BE128(LE128(SHA1(nand_cid)[:16])).
+// ----------------------------------------------------------------
+struct CDeviceNand
+{
+  UString Sn;
+  bool IsDev;
+  bool IsSnake;
+  Byte Nonce[16];       // CTRNAND CTR nonce = SHA256(nand_cid)[:16]
+  Byte Nk[8][16];
+  bool HasSlot[8];
+  // ---- TWL (slot0x03, DSi NAND) console-unique material ----
+  Byte OtpEnc8[8];      // encrypted OTP[0:8] (dev) used to build the TWL KeyX
+  Byte Cid16[16];       // nand_cid raw, source of the TWL counter
+  Byte TwlNk[16];       // derived TWL normal key (DSi keyscrambler)
+  Byte TwlNonce[16];    // BE128(LE128(SHA1(cid)[:16]))
+  bool HasTwl;
+  // Runtime-only, NOT serialized into the cache snapshot: when the user picks an
+  // Old/New 3DS in the bare-material prompt, only that CTRNAND slot is tried
+  // (-1 = auto, try both slot0x04 and slot0x05).
+  int SlotWanted;
+  CDeviceNand()
+  {
+    // Zero the POD members explicitly. Do NOT memset the whole struct: that wipes
+    // the UString Sn's internal pointer into a broken shell that crashes on copy.
+    IsDev = false;
+    IsSnake = false;
+    HasTwl = false;
+    SlotWanted = -1;
+    memset(Nonce, 0, sizeof(Nonce));
+    memset(Nk, 0, sizeof(Nk));
+    memset(HasSlot, 0, sizeof(HasSlot));
+    memset(OtpEnc8, 0, sizeof(OtpEnc8));
+    memset(Cid16, 0, sizeof(Cid16));
+    memset(TwlNk, 0, sizeof(TwlNk));
+    memset(TwlNonce, 0, sizeof(TwlNonce));
+  }
+};
+
+static bool ReadRawFile(const UString &path, Byte *buf, unsigned maxLen, unsigned &got)
+{
+  FILE *f = NULL;
+  got = 0;
+  if (_wfopen_s(&f, path, L"rb") != 0 || !f)
+    return false;
+  got = (unsigned)fread(buf, 1, maxLen, f);
+  fclose(f);
+  return got > 0;
+}
+
+static void Hex16FromText(const UString &hex, Byte out[16])
+{
+  memset(out, 0, 16);
+  unsigned got = 0;
+  for (unsigned i = 0; i + 1 < hex.Len() && got < 16; i++)
+  {
+    Byte hi = HexToByte(hex[i]);
+    Byte lo = HexToByte(hex[i + 1]);
+    if (hi != 0xFF && lo != 0xFF)
+    {
+      out[got++] = (Byte)((hi << 4) | lo);
+      i++;
+    }
+  }
+}
+
+// ---- FIRM RSA-2048 public modulus (external; never hardcoded) -------------
+// Source priority for a unit (retail/dev):
+//   1) keystone.ini [Keystone] RetailFirmPubKeyHex= / DevFirmPubKeyHex= (512 hex)
+//   2) RetailFirmPubKeyFile= / DevFirmPubKeyFile= (256B big-endian binary, or hex text)
+//   3) boot9.bin (FirmBoot9Path= or keystone\pubkey\boot9.bin): the NAND-FIRM
+//      keyslot1 modulus, retail @0xB1E0 / dev @0xC4E0 (256B, public exponent 65537).
+static unsigned HexStrToBytesN(const UString &hex, Byte *out, unsigned max)
+{
+  memset(out, 0, max);
+  unsigned n = 0;
+  bool hi = true;
+  Byte cur = 0;
+  for (unsigned i = 0; i < hex.Len() && n < max; i++)
+  {
+    Byte v = HexToByte(hex[i]);
+    if (v == 0xFF)
+      continue;
+    if (hi) { cur = v; hi = false; }
+    else { out[n++] = (Byte)((cur << 4) | v); hi = true; }
+  }
+  return n;
+}
+
+static bool LoadFirmModulus(bool dev, Byte N[256])
+{
+  memset(N, 0, 256);
+  UString dll = GetDllDirectory();
+
+  UString hex = ReadKeystoneIni(dll, dev ? L"DevFirmPubKeyHex" : L"RetailFirmPubKeyHex");
+  if (HexStrToBytesN(hex, N, 256) == 256)
+    return true;
+
+  UString fp = ReadKeystoneIni(dll, dev ? L"DevFirmPubKeyFile" : L"RetailFirmPubKeyFile");
+  if (!fp.IsEmpty())
+  {
+    UString p = KeystoneIsAbsPath(fp) ? fp : dll + UString(L"\\") + fp;
+    unsigned got = 0;
+    Byte buf[2048];
+    if (ReadRawFile(p, buf, sizeof(buf), got) && got > 0)
+    {
+      if (got == 256)
+      {
+        memcpy(N, buf, 256);
+        return true;
+      }
+      UString hs;
+      for (unsigned i = 0; i < got; i++)
+        hs += (wchar_t)buf[i];
+      if (HexStrToBytesN(hs, N, 256) == 256)
+        return true;
+    }
+  }
+
+  // boot9.bin lookup order: FirmBoot9Path= -> keystone\pubkey\boot9.bin ->
+  // device data dir (root and one level of <SN> subdirs). The 64KB boot9 dump
+  // holds BOTH key sets: keyslot1 NAND-FIRM modulus at +0xB1E0 (retail) and
+  // +0xC4E0 (devunit).
+  UString b9p = ReadKeystoneIni(dll, L"FirmBoot9Path");
+  UString tryPath[16];
+  unsigned nTry = 0;
+  if (!b9p.IsEmpty())
+    tryPath[nTry++] = KeystoneIsAbsPath(b9p) ? b9p : dll + UString(L"\\") + b9p;
+  tryPath[nTry++] = dll + UString(L"\\keystone\\pubkey\\boot9.bin");
+  UString devRoot = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
+  if (!devRoot.IsEmpty())
+  {
+    tryPath[nTry++] = devRoot + UString(L"\\boot9.bin");
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW(devRoot + UString(L"\\*"), &fd);
+    if (h != INVALID_HANDLE_VALUE)
+    {
+      do
+      {
+        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.' && nTry < 16)
+          tryPath[nTry++] = devRoot + UString(L"\\") + (const wchar_t *)fd.cFileName + UString(L"\\boot9.bin");
+      } while (FindNextFileW(h, &fd) && nTry < 16);
+      FindClose(h);
+    }
+  }
+  for (unsigned i = 0; i < nTry; i++)
+  {
+    unsigned got = 0;
+    Byte b9[65536];
+    if (ReadRawFile(tryPath[i], b9, sizeof(b9), got) && got >= 65536)
+    {
+      memcpy(N, b9 + (dev ? 0xC4E0 : 0xB1E0), 256);
+      if (N[255] != 0)
+        return true;
+    }
+  }
+  return false;
+}
+
+// ---- RSA-2048 / PKCS#1 v1.5 / SHA-256 FIRM signature verify (Windows CNG,
+// dynamically loaded; no bcrypt.lib link needed). Returns:
+//   1 = verified against this unit's public key, 0 = not verified / no key,
+//  -1 = key present but signature rejected.
+namespace FirmBcrypt {
+typedef ULONG (WINAPI *pOpenAlg)(void**, const wchar_t*, const wchar_t*, ULONG);
+typedef ULONG (WINAPI *pImport)(void*, void*, const wchar_t*, void**, Byte*, ULONG, ULONG);
+typedef ULONG (WINAPI *pVerify)(void*, void*, Byte*, ULONG, Byte*, ULONG, ULONG);
+typedef ULONG (WINAPI *pDestroyKey)(void*);
+typedef ULONG (WINAPI *pCloseAlg)(void*, ULONG);
+struct RSA_BLOB { ULONG Magic; ULONG BitLength; ULONG cbPublicExp; ULONG cbModulus;
+                 ULONG cbPrime1; ULONG cbPrime2; };
+}
+
+#pragma warning(push)
+#pragma warning(disable:4191)   // FARPROC -> CNG function pointer cast (runtime lib)
+static int FirmRsaCheck(const Byte header[256], const Byte sig[256], bool dev)
+{
+  Byte N[256];
+  if (!LoadFirmModulus(dev, N))
+    return 0;
+
+  HMODULE bc = LoadLibraryW(L"bcrypt.dll");
+  if (!bc)
+    return 0;
+  FirmBcrypt::pOpenAlg   OpenAlg   = (FirmBcrypt::pOpenAlg)  GetProcAddress(bc, "BCryptOpenAlgorithmProvider");
+  FirmBcrypt::pImport    Import    = (FirmBcrypt::pImport)   GetProcAddress(bc, "BCryptImportKeyPair");
+  FirmBcrypt::pVerify    Verify    = (FirmBcrypt::pVerify)   GetProcAddress(bc, "BCryptVerifySignature");
+  FirmBcrypt::pDestroyKey DestroyKey= (FirmBcrypt::pDestroyKey)GetProcAddress(bc, "BCryptDestroyKey");
+  FirmBcrypt::pCloseAlg   CloseAlg = (FirmBcrypt::pCloseAlg) GetProcAddress(bc, "BCryptCloseAlgorithmProvider");
+  if (!OpenAlg || !Import || !Verify || !DestroyKey || !CloseAlg)
+    return 0;
+
+  // BCRYPT_RSAKEY_BLOB (24-byte header) + exp(0x010001) + modulus (big-endian)
+  Byte blob[24 + 3 + 256];
+  memset(blob, 0, sizeof(blob));
+  FirmBcrypt::RSA_BLOB *hb = (FirmBcrypt::RSA_BLOB *)blob;
+  hb->Magic = 0x31415352;            // "RSA1" public key (BCRYPT_RSAPUBLIC_MAGIC, little-endian)
+  hb->BitLength = 2048;
+  hb->cbPublicExp = 3;
+  hb->cbModulus = 256;
+  hb->cbPrime1 = 0;
+  hb->cbPrime2 = 0;
+  Byte *exp = blob + 24;
+  exp[0] = 0x01; exp[1] = 0x00; exp[2] = 0x01;
+  memcpy(exp + 3, N, 256);
+
+  void *hAlg = NULL, *hKey = NULL;
+  int result = 0;   // 0=no key/CNG unavailable, -1=key present but rejected, 1=valid
+  if (OpenAlg(&hAlg, L"RSA", NULL, 0) != 0)
+    return 0;
+  if (Import(hAlg, NULL, L"RSAPUBLICBLOB", &hKey, blob, (ULONG)sizeof(blob), 0) != 0)
+  {
+    CloseAlg(hAlg, 0);
+    return 0;
+  }
+  {
+    Byte digest[32];
+    CSha256 st;
+    Sha256_Init(&st);
+    Sha256_Update(&st, header, 256);
+    Sha256_Final(&st, digest);
+    // BCRYPT_PAD_PKCS1 = 2; pPaddingInfo = BCRYPT_PKCS1_PADDING_INFO{pszAlgId=L"SHA256"};
+    // pbHash = raw SHA-256 digest; pbSignature = signature big-endian as stored.
+    struct { const wchar_t *pszAlgId; } padInfo = { L"SHA256" };
+    if (Verify(hKey, &padInfo, digest, 32, (Byte *)sig, 256, 2) == 0)
+      result = 1;
+    else
+      result = -1;
+  }
+  if (hKey) DestroyKey(hKey);
+  if (hAlg) CloseAlg(hAlg, 0);
+  return result;
+}
+#pragma warning(pop)
+
+// ============ Unified keystone cache: ONE indexed, obfuscated file ============
+// <program dir>\keystone\cache\keystone.cache
+// Layout: 24B header -> fixed-size index entries -> XOR-obfuscated data area.
+// LOCAL ONLY: holds derived console keys + AES keys; never share, commit, or ship.
+
+static UString CacheFilePath()
+{
+  UString dll = GetDllDirectory();
+  if (dll.IsEmpty())
+    return UString();
+  CreateDirectoryW((dll + L"\\keystone").Ptr(), NULL);
+  CreateDirectoryW((dll + L"\\keystone\\cache").Ptr(), NULL);
+  return dll + UString(L"\\keystone\\cache\\keystone.cache");
+}
+
+// FNV-1a 64-bit over files matching `pattern` in dir (size + last-write time).
+// Any add/remove/modify of a source file changes the signature.
+static UInt64 DirSig64(const UString &dir, const wchar_t *pattern)
+{
+  UInt64 h = 1469598103934665603ULL;
+  UString pat = dir + UString(L"\\") + UString(pattern ? pattern : L"*");
+  WIN32_FIND_DATAW fd;
+  HANDLE hf = FindFirstFileW(pat.Ptr(), &fd);
+  if (hf != INVALID_HANDLE_VALUE)
+  {
+    do
+    {
+      if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+      {
+        UInt64 sz = ((UInt64)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+        UInt64 mt = ((UInt64)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
+        h ^= sz; h *= 1099511628211ULL;
+        h ^= mt; h *= 1099511628211ULL;
+      }
+    } while (FindNextFileW(hf, &fd));
+    FindClose(hf);
+  }
+  return h;
+}
+
+// Light obfuscation stream over the data area (anti-casual-viewer, NOT crypto):
+// each byte XORed with a position-dependent value so Notepad cannot read plaintext keys.
+static Byte ObfByte(UInt32 i)
+{
+  return (Byte)(0x7A ^ ((i * 13u) & 0xFFu));
+}
+
+static void KS_PutU32(Byte *p, UInt32 v)
+{
+  p[0] = (Byte)v; p[1] = (Byte)(v >> 8); p[2] = (Byte)(v >> 16); p[3] = (Byte)(v >> 24);
+}
+static UInt32 KS_GetU32(const Byte *p)
+{
+  return (UInt32)p[0] | ((UInt32)p[1] << 8) | ((UInt32)p[2] << 16) | ((UInt32)p[3] << 24);
+}
+
+// XOR-obfuscate the UTF-16LE name bytes (symmetric: same call decodes). Keeps
+// the record name out of plaintext so Notepad cannot read key/device names.
+static void ObfuscateName(const UString &name, Byte *out)
+{
+  const Byte *src = (const Byte *)name.Ptr();
+  unsigned n = (unsigned)name.Len() * sizeof(wchar_t);
+  for (unsigned i = 0; i < n; i++)
+    out[i] = src[i] ^ ObfByte(i);
+}
+
+// ---- records persisted inside the unified cache file (append-only) ----
+// Record layout: type u8 | nameLen u8(wchar count) | sigLo u32 | sigHi u32 |
+// dataSize u32 | name (XOR-obfuscated UTF-16LE) | data (XOR-obfuscated).
+// The cache file holds both device (type=2) and AES-key (type=1) records in
+// ONE file; neither names nor payload are stored in plaintext.
+
+static void KeystoneCacheAppendDevice(const UString &name, const CDeviceNand &dv, UInt64 sig)
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return;
+
+  // serialize device data into a plain buffer, then obfuscate it.
+  // layout: IsDev u8 | IsSnake u8 | SnLen u8 | Sn UTF16 | Nonce16 |
+  //         Nk[4..7] x16 | HasSlotBits u8[8] | HasTwl u8 | TwlNk16 | TwlNonce16
+  unsigned cap = 1 + 1 + 1 + (unsigned)dv.Sn.Len() * 2 + 16 + 4 * 16 + 8 + 1 + 16 + 16;
+  Byte *plain = (Byte *)malloc(cap);
+  unsigned p = 0;
+  plain[p++] = dv.IsDev ? 1 : 0;
+  plain[p++] = dv.IsSnake ? 1 : 0;
+  plain[p++] = (Byte)dv.Sn.Len();
+  for (UInt32 i = 0; i < dv.Sn.Len(); i++)
+  {
+    plain[p++] = (Byte)(dv.Sn[i] & 0xFF);
+    plain[p++] = (Byte)((dv.Sn[i] >> 8) & 0xFF);
+  }
+  memcpy(plain + p, dv.Nonce, 16); p += 16;
+  for (int s = 4; s <= 7; s++) { memcpy(plain + p, dv.Nk[s], 16); p += 16; }
+  for (int s = 0; s < 8; s++)
+    plain[p++] = dv.HasSlot[s] ? 1 : 0;
+  plain[p++] = dv.HasTwl ? 1 : 0;
+  memcpy(plain + p, dv.TwlNk, 16); p += 16;
+  memcpy(plain + p, dv.TwlNonce, 16); p += 16;
+
+  unsigned dataSize = p;
+  Byte *obf = (Byte *)malloc(dataSize);
+  for (unsigned i = 0; i < dataSize; i++)
+    obf[i] = plain[i] ^ ObfByte(i);
+  free(plain);
+
+  HANDLE h = CreateFileW(path.Ptr(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h != INVALID_HANDLE_VALUE)
+  {
+    Byte hdr[14];
+    Byte *q = hdr;
+    *q++ = 2;                                  // type = device
+    *q++ = (Byte)name.Len();
+    KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
+    KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
+    KS_PutU32(q, (UInt32)dataSize); q += 4;
+    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
+    ObfuscateName(name, obfName);
+    DWORD wr;
+    WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
+    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, (const void *)obf, dataSize, &wr, NULL);
+    free(obfName);
+    CloseHandle(h);
+  }
+  free(obf);
+}
+
+// Scan the cache for an existing record of the given type carrying this sig;
+// used to skip re-appending an unchanged folder and keep the file compact.
+static bool KeystoneCacheSigPresent(Byte type, UInt64 sig)
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return false;
+  HANDLE h = CreateFileW(path.Ptr(), GENERIC_READ, FILE_SHARE_READ, NULL,
+      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD sz = GetFileSize(h, NULL);
+  Byte *buf = (Byte *)malloc(sz + 1);
+  DWORD rd = 0;
+  ReadFile(h, buf, sz, &rd, NULL);
+  CloseHandle(h);
+  bool found = false;
+  UInt32 pos = 0;
+  while (pos + 14 <= sz)
+  {
+    Byte t = buf[pos];
+    Byte nameLen = buf[pos + 1];
+    UInt32 sLo = KS_GetU32(buf + pos + 2);
+    UInt32 sHi = KS_GetU32(buf + pos + 6);
+    UInt32 ds = KS_GetU32(buf + pos + 10);
+    UInt32 dataOff = pos + 14 + (UInt32)nameLen * 2;
+    UInt32 next = dataOff + ds;
+    if (next > sz)
+      break;
+    if (t == type && ((UInt64)sLo | ((UInt64)sHi << 32)) == sig)
+    {
+      found = true;
+      break;
+    }
+    pos = next;
+  }
+  free(buf);
+  return found;
+}
+
+// Append one AES-key record (type=1) into the unified cache.
+// data = IsDev u8 + key[16]; sig = owning key-folder signature for invalidation.
+static void KeystoneCacheAppendKey(const UString &name, const Byte data[16], bool isDev, UInt64 sig)
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return;
+
+  Byte plain[17];
+  plain[0] = isDev ? 1 : 0;
+  memcpy(plain + 1, data, 16);
+  Byte obf[17];
+  for (int i = 0; i < 17; i++)
+    obf[i] = plain[i] ^ ObfByte((UInt32)i);
+
+  HANDLE h = CreateFileW(path.Ptr(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h != INVALID_HANDLE_VALUE)
+  {
+    Byte hdr[14];
+    Byte *q = hdr;
+    *q++ = 1;                                  // type = AES key
+    *q++ = (Byte)name.Len();
+    KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
+    KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
+    KS_PutU32(q, 17); q += 4;
+    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
+    ObfuscateName(name, obfName);
+    DWORD wr;
+    WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
+    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, obf, 17, &wr, NULL);
+    free(obfName);
+    CloseHandle(h);
+  }
+}
+
+// Finds a device record matching name + current source signature; fills dv on hit.
+static bool KeystoneCacheLoadDevice(const UString &name, UInt64 curSig, CDeviceNand &dv)
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return false;
+  HANDLE h = CreateFileW(path.Ptr(), GENERIC_READ, FILE_SHARE_READ, NULL,
+      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD sz = GetFileSize(h, NULL);
+  Byte *buf = (Byte *)malloc(sz + 1);
+  DWORD rd = 0;
+  ReadFile(h, buf, sz, &rd, NULL);
+  CloseHandle(h);
+
+  bool ok = false;
+  UInt32 pos = 0;
+  while (pos + 14 <= sz)
+  {
+    Byte type = buf[pos];
+    Byte nameLen = buf[pos + 1];
+    UInt32 sigLo = KS_GetU32(buf + pos + 2);
+    UInt32 sigHi = KS_GetU32(buf + pos + 6);
+    UInt32 dataSize = KS_GetU32(buf + pos + 10);
+    UInt32 nameOff = pos + 14;
+    UInt32 dataOff = nameOff + (UInt32)nameLen * 2;
+    UInt32 next = dataOff + dataSize;
+    
+    if (next > sz)
+      break;
+    // decode the obfuscated record name before comparing
+    UInt32 nb = (UInt32)nameLen * 2;
+    
+    Byte *decName = (Byte *)malloc(nb);
+    for (UInt32 i = 0; i < nb; i++)
+      decName[i] = buf[nameOff + i] ^ ObfByte(i);
+    
+    bool nameMatch = (UInt32)name.Len() == nameLen && memcmp(decName, name.Ptr(), nb) == 0;
+    free(decName);
+    
+    if (type == 2 && nameMatch &&
+        ((UInt64)sigLo | ((UInt64)sigHi << 32)) == curSig)
+    {
+      
+      const Byte *enc = buf + dataOff;
+      Byte *plain = (Byte *)malloc(dataSize);
+      
+      for (UInt32 i = 0; i < dataSize; i++)
+        plain[i] = enc[i] ^ ObfByte(i);
+      
+      // minimum payload: IsDev, IsSnake, SnLen, Nonce16, Nk[4..7]x64, HasSlotBits8,
+      // HasTwl, TwlNk16, TwlNonce16. Reject a stale/older-format record on mismatch
+      // so the caller falls back to re-deriving instead of reading misaligned keys.
+      unsigned q = 0;
+      if (dataSize < 3 + 16 + 4 * 16 + 8 + 1 + 16 + 16)
+      {
+        free(plain);
+        pos = next;
+        continue;
+      }
+      dv.IsDev = plain[q++] == 1;
+      dv.IsSnake = plain[q++] == 1;
+      Byte snLen = plain[q++];
+      
+      // Build into a local wide buffer then assign as one UString; UString has no
+      // safe single-char operator+=, appending char-by-char faults on this build.
+      wchar_t snBuf[80];
+      unsigned si = 0;
+      for (Byte i = 0; i < snLen; i++)
+      {
+        wchar_t c = (wchar_t)(plain[q] | (plain[q + 1] << 8));
+        q += 2;
+        if (si < 79)
+          snBuf[si++] = c;
+      }
+      snBuf[si] = 0;
+      dv.Sn = UString(snBuf);
+      
+      memcpy(dv.Nonce, plain + q, 16); q += 16;
+      
+      for (int s = 4; s <= 7; s++) { memcpy(dv.Nk[s], plain + q, 16); q += 16; }
+      
+      for (int s = 0; s < 8; s++)
+        dv.HasSlot[s] = plain[q++] == 1;
+      dv.HasTwl = plain[q++] == 1;
+      
+      memcpy(dv.TwlNk, plain + q, 16); q += 16;
+      memcpy(dv.TwlNonce, plain + q, 16); q += 16;
+      
+      free(plain);
+      
+      ok = true;
+      break;
+    }
+    pos = next;
+  }
+  free(buf);
+  return ok;
+}
+
+// single-block AES-ECB encrypt (IV=0 CBC encode == ECB), mirrors AesCtr_Decode3ds
+static void AesEcbEncBlock(const Byte *key, const Byte *in, Byte *out16)
+{
+  __declspec(align(16)) UInt32 aes[AES_NUM_IVMRK_WORDS];
+  Aes_SetKey_Enc(aes + 4, key, 16);
+  memset(aes, 0, 16);
+  memcpy(out16, in, 16);
+  g_AesCbc_Encode(aes, out16, 1);
+}
+
+// manual CBC-encrypt of 64 bytes (4 blocks) with explicit IV chaining
+static void AesCbcEnc64(const Byte *key, const Byte *iv, const Byte *in64, Byte *out64)
+{
+  Byte prev[16];
+  memcpy(prev, iv, 16);
+  for (int b = 0; b < 4; b++)
+  {
+    Byte x[16];
+    for (int j = 0; j < 16; j++)
+      x[j] = in64[b * 16 + j] ^ prev[j];
+    AesEcbEncBlock(key, x, out64 + b * 16);
+    memcpy(prev, out64 + b * 16, 16);
+  }
+}
+
+// Decrypt the raw encrypted OTP blob (256B) with boot9-stored CBC key/IV.
+static bool OtpDecryptMem(const Byte *otp, const Byte *b9, bool dev, Byte *out256)
+{
+  unsigned nkOff = dev ? 0xD700 : 0xD6E0;
+  unsigned ivOff = dev ? 0xD710 : 0xD6F0;
+  __declspec(align(16)) UInt32 st[AES_NUM_IVMRK_WORDS];
+  AesCbc_Start(st, b9 + nkOff, b9 + ivOff);
+  memcpy(out256, otp, 256);
+  AesCbc_Step(st, out256, 16);
+  if (memcmp(out256, "\x0F\xB0\xAD\xDE", 4) != 0)
+    return false;
+  Byte dg[32];
+  CSha256 s;
+  Sha256_Init(&s);
+  Sha256_Update(&s, out256, 0xE0);
+  Sha256_Final(&s, dg);
+  return memcmp(dg, out256 + 0xE0, 32) == 0;
+}
+
+// boot9 keyinit: derive slot0x04-0x07 normalkeys from decrypted OTP + boot9.
+static bool KeyInitDerive(const Byte *otpPlain, const Byte *b9, bool dev, Byte nk[8][16])
+{
+  const Byte *b = b9 + 0x8000;              // last 32KB of the 64KB boot9 dump
+  unsigned kb = dev ? 0x5C60 : 0x5860;
+  const Byte *keygen = b + kb;
+
+  Byte seed[0x40];
+  memcpy(seed, otpPlain + 0x90, 0x1C);     // OTP_dec[0x90:0xAC]
+  memcpy(seed + 0x1C, keygen, 0x24);       // b9_extdata_otp[0:0x24]
+  Byte cxy[32];
+  CSha256 s;
+  Sha256_Init(&s);
+  Sha256_Update(&s, seed, 0x40);
+  Sha256_Final(&s, cxy);
+
+  Byte s3f[16];
+  C3dsNormalKey(s3f, cxy, cxy + 16);       // slot0x3f normal key
+
+  Byte enc[64];
+  AesCbcEnc64(s3f, keygen + 36, keygen + 52, enc);
+  const Byte *keyX = enc;                 // shared slot keyX = enc[:16]
+
+  // fixed New3DS CTRNAND slot0x05 keyY (common to dev/retail, not from keyblob)
+  static const Byte ky05[16] =
+  { 0x4D,0x80,0x4F,0x4E,0x99,0x90,0x19,0x46,0x13,0xA2,0x04,0xAC,0x58,0x44,0x60,0xBE };
+
+  C3dsNormalKey(nk[4], keyX, b + kb + 0x1F0);
+  C3dsNormalKey(nk[5], keyX, ky05);
+  C3dsNormalKey(nk[6], keyX, b + kb + 0x210);
+  C3dsNormalKey(nk[7], keyX, b + kb + 0x220);
+  return true;
+}
+
+// ---- Bare-material profile (no ctrindex.ini next to nand.bin) ----
+// When boot9/OTP/nand_cid sit beside nand.bin without an ini, the console unit
+// and model are unknown to the program. Resolve them from (1) process env vars set
+// by the CLI (-unit/-type/-slot), or (2) a two-step GUI prompt in 7zFM.
+enum
+{
+  kBareOk = 0,
+  kBareCancel,      // user cancelled the prompt -> abort open
+  kBareMissing,     // required files are not all present
+  kBareNeedParam,   // console host, -unit not provided
+  kBareBadParam     // -unit/-type/-slot value unrecognized
+};
+
+struct CBareProfile
+{
+  bool IsDev;
+  bool IsSnake;
+  int SlotWanted;   // -1 auto (try slot0x04 & 0x05), 4 Old, 5 New
+  CBareProfile(): IsDev(false), IsSnake(false), SlotWanted(-1) {}
+};
+static CBareProfile g_bareProfile;
+
+static bool BareFilePresent(const UString &dir, const wchar_t *name)
+{
+  return GetFileAttributesW((dir + UString(L"\\") + UString(name)).Ptr()) != INVALID_FILE_ATTRIBUTES;
+}
+
+static bool BareMaterialPresent(const UString &dir)
+{
+  if (!BareFilePresent(dir, L"boot9.bin"))
+    return false;
+  // OTP dumps may carry either .mem or .bin (encrypted: otp.mem/otp.bin;
+  // plaintext: otp_dec.mem/otp_dec.bin). boot9 is always .bin and unchanged.
+  bool otp = BareFilePresent(dir, L"otp.mem") || BareFilePresent(dir, L"otp.bin")
+          || BareFilePresent(dir, L"otp_dec.mem") || BareFilePresent(dir, L"otp_dec.bin");
+  bool cid = BareFilePresent(dir, L"nand_cid.mem") || BareFilePresent(dir, L"nand_cid.bin");
+  return otp && cid;
+}
+
+// GUI host = 7zFM.exe, flagged by OpenArchive via Z7CTR_GUI=1. The console
+// subsystem (7z.exe) never prompts: it must not block a redirected/scripted run.
+// GetConsoleWindow() is unreliable under redirection (returns NULL without a
+// console even for console apps), so we rely on this explicit marker instead.
+static bool IsGuiHost()
+{
+  wchar_t v[8] = { 0 };
+  return GetEnvironmentVariableW(L"Z7CTR_GUI", v, 8) > 0 && v[0] == L'1';
+}
+
+// Dynamic MessageBoxW (user32 loaded at runtime, no link-time dependency).
+// Returns IDYES/IDNO/IDCANCEL; IDCANCEL when not interactive or unavailable.
+static int GuiAskYesNoCancel(LPCWSTR text)
+{
+  if (!IsGuiHost())
+    return IDCANCEL;
+  HMODULE u32 = LoadLibraryW(L"user32.dll");
+  if (!u32)
+    return IDCANCEL;
+  typedef int (WINAPI *PFN_MB)(HWND, LPCWSTR, LPCWSTR, UINT);
+#pragma warning(push)
+#pragma warning(disable: 4191)
+  PFN_MB pMB = reinterpret_cast<PFN_MB>(GetProcAddress(u32, "MessageBoxW"));
+#pragma warning(pop)
+  if (!pMB)
+    return IDCANCEL;
+  return pMB(NULL, text, L"7-Zip CTR", MB_YESNOCANCEL | MB_ICONQUESTION);
+}
+
+static int ReadBareEnv(const wchar_t *name, wchar_t *buf, unsigned cap)
+{
+  DWORD n = GetEnvironmentVariableW(name, buf, cap);
+  return (n > 0 && n < cap) ? 1 : 0;
+}
+
+// Resolve the bare profile; fills g_bareProfile on kBareOk.
+static int ResolveBareProfile(const UString &dir)
+{
+  if (!BareMaterialPresent(dir))
+    return kBareMissing;
+
+  g_bareProfile = CBareProfile();
+  wchar_t ev[256];
+
+  // ---- unit: retail | dev (env Z7CTR_UNIT) ----
+  bool unitFromEnv = false;
+  if (ReadBareEnv(L"Z7CTR_UNIT", ev, 256))
+  {
+    unitFromEnv = true;
+    if (_wcsicmp(ev, L"retail") == 0)
+      g_bareProfile.IsDev = false;
+    else if (_wcsicmp(ev, L"dev") == 0)
+      g_bareProfile.IsDev = true;
+    else
+      return kBareBadParam;
+  }
+
+  // ---- type: ctr | snake (dev only, env Z7CTR_TYPE) ----
+  if (ReadBareEnv(L"Z7CTR_TYPE", ev, 256))
+  {
+    if (_wcsicmp(ev, L"ctr") == 0)
+      g_bareProfile.IsSnake = false;
+    else if (_wcsicmp(ev, L"snake") == 0)
+      g_bareProfile.IsSnake = true;
+    else
+      return kBareBadParam;
+  }
+
+  // ---- slot: 4 (Old) | 5 (New), env Z7CTR_SLOT ----
+  if (ReadBareEnv(L"Z7CTR_SLOT", ev, 256))
+  {
+    if (wcscmp(ev, L"4") == 0)
+      g_bareProfile.SlotWanted = 4;
+    else if (wcscmp(ev, L"5") == 0)
+      g_bareProfile.SlotWanted = 5;
+    else
+      return kBareBadParam;
+  }
+
+  if (unitFromEnv)
+    return kBareOk;
+
+  // No -unit: a console host cannot prompt, so demand the parameter.
+  if (!IsGuiHost())
+    return kBareNeedParam;
+
+  // ---- GUI two-step prompt ----
+  int r1 = GuiAskYesNoCancel(
+      L"Device material was found next to nand.bin, but the console type is not declared.\n\n"
+      L"Which unit is this console?\n"
+      L"  Yes = Retail unit\n"
+      L"  No  = Devkit unit\n"
+      L"  Cancel = abort");
+  if (r1 == IDCANCEL)
+    return kBareCancel;
+  g_bareProfile.IsDev = (r1 == IDNO);
+
+  if (g_bareProfile.IsDev)
+  {
+    int r2 = GuiAskYesNoCancel(
+        L"Which development board type?\n"
+        L"  Yes = CTR\n"
+        L"  No  = SNAKE\n"
+        L"  Cancel = abort");
+    if (r2 == IDCANCEL)
+      return kBareCancel;
+    g_bareProfile.IsSnake = (r2 == IDNO);
+  }
+  else
+  {
+    int r2 = GuiAskYesNoCancel(
+        L"Which retail model?\n"
+        L"  Yes = Old 3DS / 2DS (slot 0x04)\n"
+        L"  No  = New 3DS / 2DS (slot 0x05)\n"
+        L"  Cancel = abort");
+    if (r2 == IDCANCEL)
+      return kBareCancel;
+    g_bareProfile.SlotWanted = (r2 == IDNO) ? 5 : 4;
+  }
+  return kBareOk;
+}
+
+// Returns true when a device was derived and appended; false when the directory
+// exists but required material is missing or derivation failed.
+static bool LoadCtrDevice(const UString &dir, CObjectVector<CDeviceNand> &out)
+{
+  UString ini = dir + UString(L"\\ctrindex.ini");
+  // Bare mode: no ctrindex.ini next to the files (material sits beside nand.bin).
+  // Then unit defaults to retail; dev must be declared explicitly in the ini.
+  bool iniExists = (GetFileAttributesW(ini.Ptr()) != INVALID_FILE_ATTRIBUTES);
+  wchar_t buf[MAX_PATH] = { 0 };
+
+  CDeviceNand dv;
+  if (iniExists)
+  {
+    // Bare mode (no ctrindex.ini) skips the profile API entirely: calling
+    // GetPrivateProfileStringW against a missing absolute ini path stalls/ABs.
+    GetPrivateProfileStringW(L"ctrindex", L"unit", L"dev", buf, MAX_PATH, ini.Ptr());
+    dv.IsDev = (_wcsicmp(buf, L"dev") == 0);
+    GetPrivateProfileStringW(L"ctrindex", L"type", L"ctr", buf, MAX_PATH, ini.Ptr());
+    dv.IsSnake = (_wcsicmp(buf, L"snake") == 0);
+    GetPrivateProfileStringW(L"ctrindex", L"sn", L"", buf, MAX_PATH, ini.Ptr());
+    dv.Sn = UString(buf);
+    GetPrivateProfileStringW(L"ctrindex", L"boot9", L"boot9.bin", buf, MAX_PATH, ini.Ptr());
+  }
+  else
+  {
+    // Bare profile already resolved by ResolveBareProfile (env vars or GUI prompt).
+    dv.IsDev = g_bareProfile.IsDev;
+    dv.IsSnake = g_bareProfile.IsSnake;
+    dv.SlotWanted = g_bareProfile.SlotWanted;
+    // Sn stays at its default-constructed empty UString; no Empty() call needed.
+    wcscpy(buf, L"boot9.bin");
+  }
+  Byte b9[65536];
+  unsigned got = 0;
+  if (!ReadRawFile(dir + UString(L"\\") + UString(buf), b9, sizeof(b9), got) || got < 65536)
+    return false;
+
+
+  // Encrypted otp dump (otp.mem/otp.bin, or ini optdump): keep first 8 bytes
+  // for the dev TWL KeyX even when a plaintext otp_dec is also present.
+  // Optional in bare mode when a plaintext otp_dec is available.
+  Byte otpRaw[256];
+  if (iniExists)
+    GetPrivateProfileStringW(L"ctrindex", L"optdump", L"otp.mem", buf, MAX_PATH, ini.Ptr());
+  else
+    wcscpy(buf, L"otp.mem");
+  unsigned rg = 0;
+  bool haveRaw = ReadRawFile(dir + UString(L"\\") + UString(buf), otpRaw, 256, rg) && rg == 256;
+  // Bare mode: fall back to otp.bin when otp.mem is absent.
+  if (!haveRaw && !iniExists)
+    haveRaw = ReadRawFile(dir + UString(L"\\otp.bin"), otpRaw, 256, rg) && rg == 256;
+  if (haveRaw)
+    memcpy(dv.OtpEnc8, otpRaw, 8);
+
+
+  // Plaintext OTP: ini optdec first; bare mode auto-detects otp_dec.mem;
+  // otherwise decrypt the encrypted dump with boot9.
+  Byte otpPlain[256];
+  if (iniExists)
+    GetPrivateProfileStringW(L"ctrindex", L"optdec", L"", buf, MAX_PATH, ini.Ptr());
+  else
+    buf[0] = 0;
+  bool havePlain = false;
+  if (buf[0])
+    havePlain = ReadRawFile(dir + UString(L"\\") + UString(buf), otpPlain, 256, got) && got == 256;
+  if (!havePlain && !iniExists)
+    havePlain = ReadRawFile(dir + UString(L"\\otp_dec.mem"), otpPlain, 256, got) && got == 256;
+  if (!havePlain && !iniExists)
+    havePlain = ReadRawFile(dir + UString(L"\\otp_dec.bin"), otpPlain, 256, got) && got == 256;
+  if (!havePlain)
+  {
+    // No plaintext OTP: decrypt the encrypted dump with boot9. If there is no
+    // encrypted dump either (only a plaintext otp_dec missing here means the
+    // file was unreadable), fail; CTRNAND still cannot be derived.
+    if (!haveRaw || !OtpDecryptMem(otpRaw, b9, dv.IsDev, otpPlain))
+      return false;
+  }
+
+
+  // NAND CID: ini nandcidfile/nandcidhex first; bare mode auto-detects
+  // nand_cid.mem / nand_cid.bin.
+  Byte cid[16];
+  if (iniExists)
+    GetPrivateProfileStringW(L"ctrindex", L"nandcidfile", L"", buf, MAX_PATH, ini.Ptr());
+  else
+    buf[0] = 0;
+  if (buf[0])
+  {
+    unsigned cg = 0;
+    if (!ReadRawFile(dir + UString(L"\\") + UString(buf), cid, 16, cg) || cg != 16)
+      return false;
+  }
+  else
+  {
+    if (iniExists)
+      GetPrivateProfileStringW(L"ctrindex", L"nandcidhex", L"", buf, MAX_PATH, ini.Ptr());
+    else
+      buf[0] = 0;
+    if (buf[0])
+      Hex16FromText(UString(buf), cid);
+    else
+    {
+      unsigned cg = 0;
+      if ((!ReadRawFile(dir + UString(L"\\nand_cid.mem"), cid, 16, cg) &&
+           !ReadRawFile(dir + UString(L"\\nand_cid.bin"), cid, 16, cg)) || cg != 16)
+      return false;
+    }
+  }
+
+  memcpy(dv.Cid16, cid, 16);
+  
+
+  // CTRNAND nonce = SHA256(cid)[0:16]
+  CSha256 cs;
+  Sha256_Init(&cs);
+  Sha256_Update(&cs, cid, 16);
+  Sha256_Final(&cs, dv.Nonce);
+
+  // ---- TWL (slot0x03) derivation: DSi keygen + SHA1(cid) counter ----
+  // Retail TWL needs only otp_dec[0x8:0x10], always available here. Dev TWL
+  // needs the encrypted OTP first 8 bytes (haveRaw); when only a plaintext
+  // otp_dec is present, dev TWL cannot be derived -> HasTwl=false (degrade,
+  // CTRNAND/Firm/AGB still work; TWL listed raw and flagged in Properties).
+  {
+    bool canTwl = !dv.IsDev || haveRaw;
+    if (canTwl)
+    {
+      Byte kx[16];
+      if (dv.IsDev)
+      {
+        // KeyX = otp_enc[0:4] (lo LE) || 1e4b7aee8bc042af || otp_enc[4:8] (hi LE)
+        memcpy(kx, dv.OtpEnc8, 4);
+        const Byte fixed8[8] = { 0x1E,0x4B,0x7A,0xEE,0x8B,0xC0,0x42,0xAF };
+        memcpy(kx + 4, fixed8, 8);
+        memcpy(kx + 12, dv.OtpEnc8 + 4, 4);
+      }
+      else
+      {
+        // retail: otp_dec[0x8:0x10], lo ^= 0xB358A6AF, lo |= 0x80000000, hi ^= 0x08C267B7
+        UInt32 lo = (UInt32)otpPlain[8]
+            | ((UInt32)otpPlain[9] << 8) | ((UInt32)otpPlain[10] << 16) | ((UInt32)otpPlain[11] << 24);
+        UInt32 hi = (UInt32)otpPlain[12]
+            | ((UInt32)otpPlain[13] << 8) | ((UInt32)otpPlain[14] << 16) | ((UInt32)otpPlain[15] << 24);
+        lo ^= 0xB358A6AFull; lo |= 0x80000000u;
+        hi ^= 0x08C267B7u;
+        kx[0]=(Byte)lo; kx[1]=(Byte)(lo>>8); kx[2]=(Byte)(lo>>16); kx[3]=(Byte)(lo>>24);
+        memcpy(kx + 4, "NINTENDO", 8);
+        kx[12]=(Byte)hi; kx[13]=(Byte)(hi>>8); kx[14]=(Byte)(hi>>16); kx[15]=(Byte)(hi>>24);
+      }
+      CDsiNormalKey(dv.TwlNk, kx, dv.IsDev);
+
+      // TWL counter = BE128( LE128(SHA1(cid)[:16]) ) = byte-reversed SHA1 prefix
+      CSha1 h1;
+      Sha1_Init(&h1);
+      Sha1_Update(&h1, cid, 16);
+      Byte sd[20];
+      Sha1_Final(&h1, sd);
+      for (int i = 0; i < 16; i++)
+        dv.TwlNonce[i] = sd[15 - i];
+      dv.HasTwl = true;
+    }
+  }
+  
+
+  if (!KeyInitDerive(otpPlain, b9, dv.IsDev, dv.Nk))
+    return false;
+
+  for (int s = 4; s <= 7; s++)
+    dv.HasSlot[s] = true;
+
+  // persist derived result into the unified cache (local only, do not share)
+  {
+    UString devName = dir;
+    int sl = devName.ReverseFind(L'\\');
+    if (sl >= 0)
+      devName = devName.Ptr(sl + 1);
+    KeystoneCacheAppendDevice(devName, dv, DirSig64(dir, L"*"));
+  }
+  out.Add(dv);
+  return true;
+}
+
+// Device-data root: <7z.dll>\keystone\ctrdevice by default; overridable in
+// keystone.ini [Keystone] DeviceDataDir= (absolute as-is, relative vs dll dir).
+// Rescanned on every call instead of cached once, so a device folder copied in
+// after the program starts (or a path edited in the options page) is picked up.
+// Process-static cache for the ctrdevice scan: enumerated once and reused until the
+// root directory's write time changes (a device folder added/removed on disk) or the
+// user presses "Rebuild cache" in the options page. Avoids re-enumerating on every open.
+static bool g_devsCached = false;
+static FILETIME g_devsRootMtime;
+static CObjectVector<CDeviceNand> g_devCache;
+
+static bool DirWriteTime(const UString &path, FILETIME &ft)
+{
+  WIN32_FILE_ATTRIBUTE_DATA ad;
+  if (!GetFileAttributesExW(path.Ptr(), GetFileExInfoStandard, &ad))
+    return false;
+  ft = ad.ftLastWriteTime;
+  return true;
+}
+
+// Remove the unified on-disk cache file (keystone.cache) on rebuild/invalidate.
+static void DropDeviceSnapshots()
+{
+  UString path = CacheFilePath();
+  if (!path.IsEmpty())
+    DeleteFileW(path.Ptr());
+}
+
+static void InvalidateCtrDevices()
+{
+  g_devsCached = false;
+  g_devCache.Clear();
+  DropDeviceSnapshots();
+}
+
+static CObjectVector<CDeviceNand> &CtrDevices()
+{
+  UString dll = GetDllDirectory();
+  if (dll.IsEmpty())
+  {
+    InvalidateCtrDevices();
+    return g_devCache;
+  }
+  UString root = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
+
+  FILETIME cur;
+  if (g_devsCached && DirWriteTime(root, cur) &&
+      CompareFileTime(&cur, &g_devsRootMtime) == 0)
+    return g_devCache;
+
+  g_devCache.Clear();
+  WIN32_FIND_DATAW fd;
+  HANDLE h = FindFirstFileW(root + UString(L"\\*"), &fd);
+  if (h != INVALID_HANDLE_VALUE)
+  {
+    do
+    {
+      if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.')
+      {
+        UString dir = root + UString(L"\\") + (const wchar_t *)fd.cFileName;
+        UString devName = (const wchar_t *)fd.cFileName;
+        
+        CDeviceNand dv;
+        // hit a valid on-disk record -> skip OTP decrypt/keyinit entirely
+        bool hit = KeystoneCacheLoadDevice(devName, DirSig64(dir, L"*"), dv);
+        
+        if (hit)
+          g_devCache.Add(dv);
+        else
+        {
+          
+          LoadCtrDevice(dir, g_devCache);
+          
+        }
+      }
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+  }
+  DirWriteTime(root, g_devsRootMtime);
+  g_devsCached = true;
+  return g_devCache;
+}
+
+// Called from the options page "Rebuild cache" button: drop both the key table cache
+// and the ctrdevice scan cache so the next access re-reads disk.
+extern "C" void Z7CtrInvalidateKeystoneCache()
+{
+  C3dsKeys::Instance().Invalidate();
+  InvalidateCtrDevices();
+}
+
+
+// Live decrypting seekable stream over a single NAND partition. Used by
+// IInArchiveGetStream so 7zFM opens the partition in place (MBR/FAT handler
+// reads from this stream directly) instead of dumping the whole volume to a
+// temp file.
+Z7_CLASS_IMP_IInStream(CDecryptNandStream)
+  CMyComPtr<IInStream> Stream;
+  UInt64 BaseAbs;   // partition absolute offset in the source image
+  UInt64 Size;      // partition size
+  Byte Key[16];
+  Byte Ctr[16];
+  bool Twl;
+  UInt64 _virtPos;
+  UInt64 _phyPos;
+public:
+  HRESULT Init(IInStream *s, UInt64 baseAbs, UInt64 size,
+      const Byte *key, const Byte *ctr, bool twl)
+  {
+    Stream = s;
+    BaseAbs = baseAbs;
+    Size = size;
+    Twl = twl;
+    memcpy(Key, key, 16);
+    memcpy(Ctr, ctr, 16);
+    _virtPos = 0;
+    _phyPos = (UInt64)(Int64)-1;
+    return S_OK;
+  }
+};
+
+Z7_COM7F_IMF(CDecryptNandStream::Read(void *data, UInt32 size, UInt32 *processedSize))
+{
+  if (processedSize)
+    *processedSize = 0;
+  if (_virtPos >= Size)
+    return S_OK;
+  {
+    UInt64 rem = Size - _virtPos;
+    if (size > rem)
+      size = (UInt32)rem;
+  }
+  if (size == 0)
+    return S_OK;
+
+  const UInt64 abs = BaseAbs + _virtPos;
+  if (_phyPos != abs)
+  {
+    RINOK(Stream->Seek((Int64)abs, STREAM_SEEK_SET, NULL));
+    _phyPos = abs;
+  }
+  UInt32 got = 0;
+  RINOK(Stream->Read(data, size, &got));
+  _phyPos += got;
+  _virtPos += got;
+
+  if (got != 0)
+  {
+    Byte *out = (Byte *)data;
+    if (Twl)
+    {
+      // Plaintext NCSD header prefix: only the MBR table [0x1BE,0x200) is
+      // encrypted; ciphertext (block reversal) starts at 0x12E00.
+      const UInt64 kPlainEnd = 0x12E00, kMbrLo = 0x1BE, kMbrHi = 0x200;
+      size_t p = 0;
+      while (p < got)
+      {
+        UInt64 cur = abs + p;
+        size_t avail = got - p;
+        if (cur < kPlainEnd)
+        {
+          if (cur < kMbrHi && cur + avail > kMbrLo)
+          {
+            UInt64 s = (cur > kMbrLo) ? cur : kMbrLo;
+            UInt64 e = (cur + avail < kMbrHi) ? cur + avail : kMbrHi;
+            Byte mbr[0x42];
+            AesCtr_DecodeTwl(Key, Ctr, s, mbr, (size_t)(e - s));
+            memcpy(out + p + (size_t)(s - cur), mbr, (size_t)(e - s));
+          }
+          size_t step = (size_t)(kPlainEnd - cur);
+          if (step > avail) step = avail;
+          p += step;
+        }
+        else
+        {
+          AesCtr_DecodeTwl(Key, Ctr, cur, out + p, avail);
+          p += avail;
+        }
+      }
+    }
+    else
+      AesCtr_Decode3ds(Key, Ctr, abs, out, got);
+  }
+
+  if (processedSize)
+    *processedSize = got;
+  return S_OK;
+}
+
+Z7_COM7F_IMF(CDecryptNandStream::Seek(Int64 offset, UInt32 seekOrigin, UInt64 *newPosition))
+{
+  switch (seekOrigin)
+  {
+    case STREAM_SEEK_SET: break;
+    case STREAM_SEEK_CUR: offset += (Int64)_virtPos; break;
+    case STREAM_SEEK_END: offset += (Int64)Size; break;
+    default: return STG_E_INVALIDFUNCTION;
+  }
+  if (offset < 0)
+    return HRESULT_WIN32_ERROR_NEGATIVE_SEEK;
+  _virtPos = (UInt64)offset;
+  if (newPosition)
+    *newPosition = (UInt64)offset;
+  return S_OK;
+}
+
+Z7_CLASS_IMP_CHandler_IInArchive_1(
+  IInArchiveGetStream
+)
   CMyComPtr<IInStream> _stream;
   CObjectVector<CItem> _items;
 
@@ -623,6 +1981,9 @@ Z7_CLASS_IMP_CHandler_IInArchive_0
 
   bool _isDev;              // unit-key type (dev vs retail), lazily determined
   bool _isDevSet;
+
+  UString _srcDir;          // directory of the opened source file (nand.bin),
+                            // used to look up per-device key material next to it
 
   // SNAKE update: Contents.cnt container expansion (CupTheCnt format)
   UInt64 _cntOff;
@@ -655,6 +2016,8 @@ Z7_CLASS_IMP_CHandler_IInArchive_0
     it.InnerBase = innerBase;
     it.InnerOff = innerOff;
     it.Virtual = false;
+    it.StreamCtr = false;
+    it.StreamTwl = false;
     if (innerCtr)
       memcpy(it.InnerCtr, innerCtr, 16);
     else
@@ -732,8 +2095,10 @@ Z7_CLASS_IMP_CHandler_IInArchive_0
   HRESULT ParseNCCH(UInt64 base, const UString &prefix);
   HRESULT ParseCia(UInt64 base);
   HRESULT ParseNcsd(UInt64 base);
+  HRESULT ParseNandNcsd(UInt64 base);
   HRESULT ParseCntStandalone(UInt64 base);
   HRESULT ParseTmd(UInt64 base);
+  HRESULT ParseFirm(UInt64 base);
   HRESULT Open2(IInStream *);
 
 public:
@@ -784,7 +2149,10 @@ enum
   kpidN3dsExefs,
   kpidN3dsRomfs,
   kpidN3dsCrypto,
-  kpidN3dsContent0
+  kpidN3dsContent0,
+  kpidN3dsFirmSig,
+  kpidN3dsFirmKind,
+  kpidN3dsFirmEntry
 };
 
 static const CStatProp kArcProps[] =
@@ -808,11 +2176,97 @@ static const CStatProp kArcProps[] =
   { "RomFS",            kpidN3dsRomfs,         VT_BSTR },
   { "Encryption",       kpidN3dsCrypto,        VT_BSTR },
   { "Content 0",        kpidN3dsContent0,      VT_BSTR },
+  { "FIRM Signature",   kpidN3dsFirmSig,       VT_BSTR },
+  { "FIRM Type",        kpidN3dsFirmKind,      VT_BSTR },
+  { "FIRM Entrypoint",  kpidN3dsFirmEntry,     VT_BSTR },
   { "File System",      kpidFileSystem,        VT_BSTR }
 };
 
 IMP_IInArchive_Props
 IMP_IInArchive_ArcProps_WITH_NAME
+
+// ----------------------------------------------------------------
+// FIRM (standalone .firm): magic 'FIRM' @0; section table @0x40 (4 x 0x30);
+// RSA-2048 signature @0x100. Sections are listed raw (the New3DS arm9bin extra
+// encryption layer is not decrypted this round).
+// ----------------------------------------------------------------
+HRESULT CHandler::ParseFirm(UInt64 base)
+{
+  Byte hdr[0x100];
+  RINOK(ReadAt(base, hdr, 0x100));
+  if (memcmp(hdr, "FIRM", 4) != 0)
+    return S_FALSE;
+
+  _info.Container = 7;
+  _info.FirmArm11Entry = GetUi32(hdr + 0x08);
+  _info.FirmArm9Entry  = GetUi32(hdr + 0x0C);
+
+  // signature block @0x100 (0x100 bytes); all-zero means no signature present
+  Byte sigBlock[0x100];
+  memset(sigBlock, 0, sizeof(sigBlock));
+  bool sigAllZero = true;
+  if (ReadAt(base + 0x100, sigBlock, 0x100) == S_OK)
+    for (int i = 0; i < 0x100; i++)
+      if (sigBlock[i]) { sigAllZero = false; break; }
+
+  static const char *kSecNames[4] =
+    { "arm9.bin", "arm11_0.bin", "arm11_1.bin", "arm11_2.bin" };
+  int ok = 0, total = 0;
+  for (unsigned i = 0; i < 4; i++)
+  {
+    const Byte *sh = hdr + 0x40 + i * 0x30;
+    UInt32 off  = GetUi32(sh + 0x00);
+    UInt32 size = GetUi32(sh + 0x08);
+    if (size == 0)
+      continue;
+    total++;
+
+    // verify the embedded per-section SHA-256 (sh+0x10, 32 bytes) on a stream
+    CSha256 st;
+    Sha256_Init(&st);
+    __declspec(align(16)) Byte blk[0x10000];
+    UInt64 pos = base + off, left = size;
+    while (left > 0)
+    {
+      UInt32 n = left > sizeof(blk) ? sizeof(blk) : (UInt32)left;
+      if (ReadAt(pos, blk, n) != S_OK)
+        break;
+      Sha256_Update(&st, blk, n);
+      pos += n;
+      left -= n;
+    }
+    Byte dg[32];
+    Sha256_Final(&st, dg);
+    if (left == 0 && memcmp(dg, sh + 0x10, 32) == 0)
+      ok++;
+
+    AddItem(UString(kSecNames[i]), base + off, size, false,
+        false, 0, NULL, false, NULL, NULL, base, off);
+  }
+  _info.FirmSectionsTotal = total;
+  _info.FirmSectionsOk = ok;
+  memset(_info.FirmKind, 0, sizeof(_info.FirmKind));
+
+  // Signature tri-state: 1=valid(official), 2=sighax/homebrew(rejected by key),
+  // 3=corrupt/missing, 0=not verified(no public key loaded). Try retail then dev.
+  if (sigAllZero)
+  {
+    _info.FirmSigState = 3;
+  }
+  else
+  {
+    int vr = FirmRsaCheck(hdr, sigBlock, false);
+    if (vr != 1)
+      vr = FirmRsaCheck(hdr, sigBlock, true);
+    if (vr == 1)
+      _info.FirmSigState = 1;
+    else if (vr == -1)
+      _info.FirmSigState = 2;
+    else
+      _info.FirmSigState = 0;
+  }
+  return S_OK;
+}
 
 // ----------------------------------------------------------------
 // ExeFS
@@ -1318,7 +2772,11 @@ HRESULT CHandler::ParseCia(UInt64 base)
   {
     Byte tik[0x200];
     RINOK(ReadAt(base + offsetTicket, tik, 0x200));
-    bool devkit = (memcmp(tik + 0x140, "Root-CA00000004-XS00000009", 0x2A) == 0);
+    // Development units sign their ticket with issuer "Root-CA00000004-XS00000009"
+    // (27 bytes, NUL-terminated). Compare exactly 27 bytes: the earlier 0x2A
+    // (42-byte) memcmp read past the string literal into adjacent memory and
+    // could never match, so dev tickets were misrouted to the retail key path.
+    bool devkit = (memcmp(tik + 0x140, "Root-CA00000004-XS00000009", 0x1B) == 0);
     Byte ckIdx = tik[0x1F1];
     _info.TicketId = GetBe64(tik + 0x9C);
     _info.DeviceId = GetBe32(tik + 0xA4);
@@ -1333,8 +2791,9 @@ HRESULT CHandler::ParseCia(UInt64 base)
       char nm[16];
       // Development units use the dev common key set, which our key folder
       // stores under common%uN (the common0..5 files hold retail values).
+      // Find() requires a lowercase-normalized name, hence the small 'n'.
       if (devkit)
-        sprintf_s(nm, "common%uN", (unsigned)ckIdx);
+        sprintf_s(nm, "common%un", (unsigned)ckIdx);
       else
         sprintf_s(nm, "common%u", (unsigned)ckIdx);
       ck = C3dsKeys::Instance().Find(nm, devkit);
@@ -1356,7 +2815,7 @@ HRESULT CHandler::ParseCia(UInt64 base)
         else
           nkOk = false;       // retail requires slot0x3DKeyX for the Old3DS path
         char nmN[16];
-        sprintf_s(nmN, "common%uN", (unsigned)ckIdx);
+        sprintf_s(nmN, "common%un", (unsigned)ckIdx);
         const Byte *ckN = C3dsKeys::Instance().Find(nmN, false);
         if (ckN)
         {
@@ -1561,8 +3020,10 @@ HRESULT CHandler::ParseCia(UInt64 base)
 
 HRESULT CHandler::ParseNcsd(UInt64 base)
 {
+  
   Byte hdr[0x200];
   RINOK(ReadAt(base, hdr, 0x200));
+  
 
   if (memcmp(hdr + 0x100, "NCSD", 4) != 0)
     return S_FALSE;
@@ -1586,6 +3047,206 @@ HRESULT CHandler::ParseNcsd(UInt64 base)
   }
 
   return S_OK;
+}
+
+// NAND open failure reporting. reason 0: no device material anywhere;
+// reason 1: material present but MBR 0x55AA could not be decrypted (mismatch).
+// GUI host (7zFM, no console window) shows a warning box; console host (7z.exe)
+// just gets a failing HRESULT for the CLI to print. user32 is loaded dynamically
+// so the dll does not take a link-time dependency on MessageBoxW.
+static HRESULT ReportNandNoDevice(int reason)
+{
+  if (IsGuiHost())
+  {
+    HMODULE u32 = LoadLibraryW(L"user32.dll");
+    if (u32)
+    {
+      typedef int (WINAPI *PFN_MessageBoxW)(HWND, LPCWSTR, LPCWSTR, UINT);
+#pragma warning(push)
+#pragma warning(disable: 4191) // FARPROC -> MessageBoxW signature (verified by name)
+      PFN_MessageBoxW pMB = reinterpret_cast<PFN_MessageBoxW>(GetProcAddress(u32, "MessageBoxW"));
+#pragma warning(pop)
+      if (pMB)
+      {
+        LPCWSTR msg;
+        if (reason == 0)
+          msg = L"No 3DS device key material was found.\n\n"
+                L"Place boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
+                L"next to nand.bin, or register this console under keystone\\ctrdevice.";
+        else if (reason == 2)
+          msg = L"Device material next to nand.bin is incomplete.\n\n"
+                L"boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
+                L"are all required in the same folder, or register this console "
+                L"under keystone\\ctrdevice.";
+        else if (reason == 3)
+          msg = L"Opening was cancelled.";
+        else if (reason == 4)
+          msg = L"Bare device material needs -unit retail|dev on the command line "
+                L"(this console host cannot show the prompt).";
+        else if (reason == 5)
+          msg = L"Invalid device parameter. Use -unit retail|dev, -type ctr|snake, "
+                L"-slot 4|5.";
+        else
+          msg = L"The available device material does not match this nand.bin "
+                L"(CTRNAND MBR signature could not be decrypted).\n\n"
+                L"Check that boot9.bin, OTP and nand_cid.mem belong to the same console.";
+        UINT icon = (reason == 3) ? MB_OK | MB_ICONINFORMATION : (MB_OK | MB_ICONWARNING);
+        pMB(NULL, msg, L"7-Zip CTR", icon);
+      }
+    }
+  }
+  return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+}
+
+// Decrypt CTRNAND sector0 MBR per device/slot and return the device whose 0x55AA
+// signature checks out. Honors CDeviceNand::SlotWanted (user-picked Old/New lock).
+static const CDeviceNand *TryMatchDevices(const CObjectVector<CDeviceNand> &devs,
+    const Byte *ctMbr, UInt64 ctrNandStart)
+{
+  for (unsigned di = 0; di < devs.Size(); di++)
+  {
+    const CDeviceNand &dv = devs[di];
+    for (int trySlot = 4; trySlot <= 5; trySlot++)
+    {
+      if (!dv.HasSlot[trySlot])
+        continue;
+      if (dv.SlotWanted >= 0 && trySlot != dv.SlotWanted)
+        continue;
+      Byte work[0x200];
+      memcpy(work, ctMbr, 0x200);
+      AesCtr_Decode3ds(dv.Nk[trySlot], dv.Nonce, ctrNandStart, work, 0x200);
+      if (work[0x1FE] == 0x55 && work[0x1FF] == 0xAA)
+        return &dv;
+    }
+  }
+  return NULL;
+}
+
+// NAND backup image (sysnand/nand.bin): NCSD partition table of encrypted
+// system regions. Console-unique normalkeys are derived from keystone\ctrdevice
+// archives (boot9 + otp + nand_cid); the matching device is found by decrypting
+// the CTRNAND sector0 MBR and checking the 0x55AA signature. Each decrypted
+// region becomes a virtual partition image streamed with AES-CTR on extract.
+HRESULT CHandler::ParseNandNcsd(UInt64 base)
+{
+  
+  Byte hdr[0x200];
+  RINOK(ReadAt(base, hdr, 0x200));
+  
+
+  // Registered devices from keystone\ctrdevice are tried first; only when none
+  // matches do we fall back to bare material beside nand.bin (which needs an
+  // explicit unit/model via -unit/-type on the CLI or the GUI prompt).
+  const CObjectVector<CDeviceNand> &baseDevs = CtrDevices();
+
+  // CTRNAND region starts at 0xB930000 on both Old/New 3DS (slot0x04 Old,
+  // slot0x05 New). Read the ciphertext sector once, retry per device/slot.
+  const UInt64 kCtrNandStart = 0xB930000;
+  Byte ctMbr[0x200];
+  if (ReadAt(kCtrNandStart, ctMbr, 0x200) != S_OK)
+    return S_FALSE;
+
+  const CDeviceNand *match = TryMatchDevices(baseDevs, ctMbr, kCtrNandStart);
+
+  // Bare-material fallback beside nand.bin, only when no registered device matched.
+  CObjectVector<CDeviceNand> bareDevs;
+  if (!match && !_srcDir.IsEmpty())
+  {
+    int st = ResolveBareProfile(_srcDir);
+    if (st == kBareCancel)
+      return ReportNandNoDevice(3);
+    if (st == kBareMissing)
+      return ReportNandNoDevice(2);
+    if (st == kBareNeedParam)
+      return ReportNandNoDevice(4);
+    if (st == kBareBadParam)
+      return ReportNandNoDevice(5);
+    LoadCtrDevice(_srcDir, bareDevs);
+    if (bareDevs.IsEmpty())
+      return ReportNandNoDevice(2);
+    match = TryMatchDevices(bareDevs, ctMbr, kCtrNandStart);
+  }
+
+  if (!match)
+  {
+    if (baseDevs.IsEmpty() && bareDevs.IsEmpty() && _srcDir.IsEmpty())
+      return ReportNandNoDevice(0);  // no device material found anywhere
+    return ReportNandNoDevice(1);    // material present, but does not decrypt this nand.bin
+  }
+  
+
+  _info.Clear();
+  _info.Container = 2;
+  _info.MediaId = GetBe64(hdr + 0x108);
+
+  for (unsigned i = 0; i < 8; i++)
+  {
+    UInt32 offSec = GetUi32(hdr + 0x120 + i * 8);
+    UInt32 szSec  = GetUi32(hdr + 0x124 + i * 8);
+    // A blank partition has BOTH offset and size zero; TWL part0 legitimately
+    // sits at offset 0, so skipping on offSec==0 alone would drop it.
+    if (offSec == 0 && szSec == 0)
+      continue;
+    Byte ft = hdr[0x110 + i];
+    Byte ct = hdr[0x118 + i];
+
+    bool isTwl = (ct == 1);
+    bool twlReady = false;
+    unsigned slot = 0;
+    const char *role = "";
+    if (isTwl)
+    {
+      role = "TWL";
+      // TWL key unavailable (e.g. dev with only a plaintext otp_dec, no
+      // encrypted OTP): still list the partition raw, flag it in Properties.
+      twlReady = match->HasTwl;
+      if (!twlReady)
+        _info.TwlFailed = true;
+    }
+    else if (ct == 2)
+    {
+      if (ft == 4)            { slot = 7; role = "AGB_Save"; }
+      else if (ft == 3)       { slot = 6; role = (i == 2) ? "Firm0" : "Firm1"; }
+      else if (ft == 1 && (UInt64)offSec * kMediaUnit > 0xB00000)
+                              { slot = 4; role = "CTRNAND"; }
+    }
+    else if (ct == 3)
+    {
+      slot = 5; role = "CTRNAND";
+    }
+
+    if (!isTwl && (slot == 0 || !match->HasSlot[slot]))
+      continue;   // unknown or unsupported slot: list nothing
+
+    _info.NumPartitions++;
+    UInt64 absOff = base + (UInt64)offSec * kMediaUnit;
+    UInt64 absSz  = (UInt64)szSec * kMediaUnit;
+    const Byte *useKey = NULL;
+    const Byte *useCtr = NULL;
+    if (isTwl)
+    {
+      if (twlReady) { useKey = match->TwlNk; useCtr = match->TwlNonce; }
+    }
+    else
+    {
+      useKey = match->Nk[slot];
+      useCtr = match->Nonce;
+    }
+    char nm[64];
+    snprintf(nm, sizeof(nm), "Partition_%u_%s.bin", i, role);
+    AddItem(UString(nm), absOff, absSz, false,
+        false, 0, NULL, false,
+        useKey, useCtr, absOff, absOff);
+    CItem &it = _items[_items.Size() - 1];
+    if (isTwl && twlReady)
+      it.StreamTwl = true;
+    else if (!isTwl)
+      it.StreamCtr = true;
+
+  }
+
+  
+  return _items.IsEmpty() ? S_FALSE : S_OK;
 }
 
 // Standalone Contents.cnt (SNAKE update container): "CONT" header followed by
@@ -1740,27 +3401,43 @@ HRESULT CHandler::ParseTmd(UInt64 base)
 // ----------------------------------------------------------------
 HRESULT CHandler::Open2(IInStream *)
 {
-  // ensure external keys (3dskey / 3dskey_dev next to 7z.dll) are loaded
+  
+  // ensure external keys (keystone\ctraes_retail / ctraes_dev, or keystone.ini
+  // custom folders next to 7z.dll) are loaded
   C3dsKeys::Instance().EnsureLoaded();
+  
 
   Byte hdr[0x200];
   HRESULT res = ReadAt(0, hdr, 0x200);
+  
   if (res != S_OK || res == S_FALSE)
     return S_FALSE;
 
   // Standalone Contents.cnt (SNAKE update container): magic "CONT" at offset 0
   if (memcmp(hdr, "CONT", 4) == 0)
-    return ParseCntStandalone(0);
+  {  return ParseCntStandalone(0); }
 
   // CIA: header size field == 0x2020
   if (GetUi32(hdr) == 0x2020)
-    return ParseCia(0);
+  {  return ParseCia(0); }
 
   // NCCH / NCSD magic lives at 0x100
   if (memcmp(hdr + 0x100, "NCCH", 4) == 0)
-    return ParseNCCH(0, UString());
+  {  return ParseNCCH(0, UString()); }
   if (memcmp(hdr + 0x100, "NCSD", 4) == 0)
+  {
+    
+    // NAND backup layout: partition0 is the TWL region (fstype=1, crypttype=1)
+    // at offset 0; game-cartridge NCSD never carries this partition table.
+    if (hdr[0x110] == 1 && hdr[0x118] == 1 &&
+        GetUi32(hdr + 0x120) == 0 && GetUi32(hdr + 0x124) != 0)
+    {
+      
+      return ParseNandNcsd(0);
+    }
+    
     return ParseNcsd(0);
+  }
 
   // CDN TMD (standalone tmd.<n>): RSA sig type @0, "Root-" issuer at Y
   {
@@ -1771,6 +3448,13 @@ HRESULT CHandler::Open2(IInStream *)
       if (Y + 0x40 <= 0x200 && memcmp(hdr + Y, "Root-", 5) == 0)
         return ParseTmd(0);
     }
+  }
+
+  // Standalone FIRM (.firm: NATIVE/SAFE_MODE/TWL/AGB/homebrew): magic 'FIRM' @0.
+  if (memcmp(hdr, "FIRM", 4) == 0)
+  {
+    _info.Clear();
+    return ParseFirm(0);
   }
 
   // Standalone plaintext RomFS (romfs.bin / .romfs): IVFC magic @0.
@@ -1798,6 +3482,24 @@ Z7_COM7F_IMF(CHandler::Open(IInStream *stream, const UInt64 *, IArchiveOpenCallb
   COM_TRY_BEGIN
   Close();
   _stream = stream;
+  // 7-Zip CTR: capture the source file's directory so per-device key material
+  // sitting next to nand.bin can be used when keystone\ctrdevice has no match.
+  _srcDir.Empty();
+  // The opened stream cannot expose its own path (the core wraps it and the
+  // IStreamGetProp returned is an empty shell), so the UI host publishes the
+  // absolute path through a per-process environment variable before calling
+  // Open. exe and dll share the process environment, so this reaches us here.
+  {
+    wchar_t envPath[2048];
+    DWORD envN = GetEnvironmentVariableW(L"Z7CTR_SRC_PATH", envPath, 2048);
+    if (envN > 0 && envN < 2048)
+    {
+      UString full = envPath;
+      int sl = full.ReverseFind(L'\\');
+      if (sl > 0)
+        _srcDir = full.Left((unsigned)sl);
+    }
+  }
   RINOK(Open2(stream));
   // If a CIA exposed only its metadata (cert/ticket/tmd) on the first pass,
   // force a full re-parse so encrypted contents expand too.
@@ -1816,7 +3518,31 @@ Z7_COM7F_IMF(CHandler::Close())
 {
   _stream.Release();
   _items.Clear();
+  _srcDir.Empty();
   return S_OK;
+}
+
+Z7_COM7F_IMF(CHandler::GetStream(UInt32 index, ISequentialInStream **stream))
+{
+  COM_TRY_BEGIN
+  *stream = NULL;
+  if (index >= _items.Size())
+    return S_FALSE;
+  const CItem &it = _items[index];
+  // Only NAND partitions (CTR bulk / TWL) provide a live decrypting stream.
+  // Every other item falls back to the standard extract-to-temp path.
+  if (!it.StreamCtr && !it.StreamTwl)
+    return S_FALSE;
+  // Create through the derived type to call Init, then hold through the base
+  // interface so release calls the public virtual IUnknown::Release (the class's
+  // own AddRef/Release are CMyUnknownImp-private).
+  CDecryptNandStream *raw = new CDecryptNandStream;
+  RINOK(raw->Init(_stream, it.Offset, it.Size, it.InnerKey, it.InnerCtr, it.StreamTwl));
+  CMyComPtr<ISequentialInStream> s;
+  s.Attach(raw);
+  *stream = s.Detach();
+  return S_OK;
+  COM_TRY_END
 }
 
 Z7_COM7F_IMF(CHandler::GetNumberOfItems(UInt32 *numItems))
@@ -1865,6 +3591,9 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
           prop = s;
           break;
         }
+        UString note;
+        if (_info.TwlFailed)
+          note = UString(L"TWL decryption failed: encrypted OTP dump (otp.mem/otp.bin) needed for the dev TWL key; TWL partition is listed raw.");
         C3dsKeys &k = C3dsKeys::Instance();
         k.EnsureLoaded();
         if (k.Retail() != 0 || k.Dev() != 0)
@@ -1873,8 +3602,11 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
           s += NumToUString(k.Retail());
           s += UString(L", dev=");
           s += NumToUString(k.Dev());
-          prop = s;
+          if (!note.IsEmpty()) { note += UString(L"; "); note += s; }
+          else note = s;
         }
+        if (!note.IsEmpty())
+          prop = note;
         break;
       }
 
@@ -1886,6 +3618,7 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
       else if (_info.IsTmd()) prop = "TMD (CDN)";
       else if (_info.IsRomfs()) prop = "RomFS (plaintext)";
       else if (_info.IsExefs()) prop = "ExeFS (plaintext)";
+      else if (_info.IsFirm()) prop = "FIRM";
       break;
     case kpidN3dsMediaId:
       if (_info.IsNcsd()) prop = HexUInt64(_info.MediaId);
@@ -1968,6 +3701,38 @@ Z7_COM7F_IMF(CHandler::GetArchiveProperty(PROPID propID, PROPVARIANT *value))
       {
         UString s = UString(L"id=0x"); s += HexUInt32(_info.Content0Id);
         s += UString(L" size=0x"); s += HexUInt64(_info.Content0Size);
+        prop = s;
+      }
+      break;
+
+    case kpidN3dsFirmSig:
+      if (_info.IsFirm())
+      {
+        UString s;
+        switch (_info.FirmSigState)
+        {
+          case 1: s = UString(L"Valid (official signature)"); break;
+          case 2: s = UString(L"Sighax / homebrew signature"); break;
+          case 3: s = UString(L"Corrupt / missing signature"); break;
+          default: s = UString(L"Not verified (no public key loaded)"); break;
+        }
+        s += UString(L"; sections ");
+        s += NumToUString((UInt32)_info.FirmSectionsOk);
+        s += UString(L"/");
+        s += NumToUString((UInt32)_info.FirmSectionsTotal);
+        s += UString(L" SHA-256 ok");
+        prop = s;
+      }
+      break;
+    case kpidN3dsFirmKind:
+      if (_info.IsFirm() && _info.FirmKind[0])
+        prop = ReadAscii((const Byte *)_info.FirmKind, sizeof(_info.FirmKind) - 1);
+      break;
+    case kpidN3dsFirmEntry:
+      if (_info.IsFirm())
+      {
+        UString s = UString(L"ARM11=0x"); s += HexUInt64(_info.FirmArm11Entry);
+        s += UString(L" ARM9=0x"); s += HexUInt64(_info.FirmArm9Entry);
         prop = s;
       }
       break;
@@ -2069,9 +3834,88 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
 
     if (!item.IsDir && (outStream || testMode))
     {
+
       if (!testMode)
       {
-        if (item.Encrypted && _titleKeyOk)
+        if (item.StreamCtr || item.StreamTwl)
+        {
+
+          // NAND partition: bulk sequential AES-CTR; the counter runs on the
+          // absolute whole-card offset (nonce = SHA256(nand_cid)[:16]). One
+          // 1 MB chunk per round; report progress per chunk (the per-16-byte
+          // inner branch would seek/reset-key 70M+ times and stall at 0%).
+          const size_t kChunk = (size_t)1 << 20;
+          UInt64 done = 0;
+          UInt64 reported = 0;
+          while (done < item.Size)
+          {
+            size_t want = kChunk;
+            if (want > (size_t)(item.Size - done))
+              want = (size_t)(item.Size - done);
+            if (_chunkBuf.Size() < kChunk)
+              _chunkBuf.Alloc(kChunk);
+            Byte *cb = _chunkBuf;
+            HRESULT hrS = Seek(item.Offset + done);
+            if (done == 0) 
+            RINOK(hrS);
+            HRESULT hrR = ReadF(cb, want);
+            if (done == 0) 
+            RINOK(hrR);
+            // counter base = absolute offset of this chunk; the decoder adds
+            // offBytes/16 to the nonce.
+            if (item.StreamTwl)
+            {
+              // TWL (slot0x03) region: everything before 0x12E00 is plaintext
+              // (NCSD header), EXCEPT the MBR table at [0x1BE, 0x200) which is
+              // encrypted; only from 0x12E00 onward (twln/twlp FAT volumes) the
+              // DSi block-reversal AES-CTR applies. Decrypting the plaintext
+              // header would corrupt it, so leave raw bytes untouched and only
+              // decode the MBR subrange and the ciphertext tail.
+              const UInt64 kTwlPlainEnd = 0x12E00;
+              const UInt64 kMbrLo = 0x1BE, kMbrHi = 0x200;
+              UInt64 segAbs = item.Offset + done;
+              size_t p = 0;
+              while (p < want)
+              {
+                UInt64 a = segAbs + p;
+                size_t avail = want - p;
+                if (a < kTwlPlainEnd)
+                {
+                  // plaintext region: raw bytes already hold the plaintext; only
+                  // decrypt the overlapping MBR partition table subrange.
+                  if (a < kMbrHi && a + avail > kMbrLo)
+                  {
+                    UInt64 s = (a > kMbrLo) ? a : kMbrLo;
+                    UInt64 e = (a + avail < kMbrHi) ? a + avail : kMbrHi;
+                    Byte mbr[0x42];
+                    AesCtr_DecodeTwl(item.InnerKey, item.InnerCtr,
+                        s, mbr, (size_t)(e - s));
+                    memcpy(cb + p + (size_t)(s - a), mbr, (size_t)(e - s));
+                  }
+                  size_t step = (size_t)(kTwlPlainEnd - a);
+                  if (step > avail) step = avail;
+                  p += step;
+                }
+                else
+                {
+                  AesCtr_DecodeTwl(item.InnerKey, item.InnerCtr, a, cb + p, avail);
+                  p += avail;
+                }
+              }
+            }
+            else
+              AesCtr_Decode3ds(item.InnerKey, item.InnerCtr,
+                  item.Offset + done, cb, want);
+            HRESULT hrW = WriteStream(outStream, cb, want);
+            if (done == 0) 
+            RINOK(hrW);
+            done += want;
+            reported += want;
+            RINOK(extractCallback->SetCompleted(&reported));
+          }
+          
+        }
+        else if (item.Encrypted && _titleKeyOk)
         {
           // Decrypt the whole content once into _decBuf, then emit [Offset, Offset+Size)
           // with the inner AES-CTR layer applied per 16-byte block.
@@ -2136,6 +3980,7 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
         }
         else if (item.HasInnerKey)
         {
+          
           // no outer layer (standalone .cxi): read raw blocks and apply inner AES-CTR
           UInt64 end = item.Offset + item.Size;
           UInt64 emit = item.Offset;
@@ -2156,6 +4001,7 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
         }
         else
         {
+          
           RINOK(Seek(item.Offset));
           UInt64 remain = item.Size;
           while (remain > 0)
@@ -2188,6 +4034,9 @@ API_FUNC_static_IsArc N3ds_IsArc(const Byte *p, size_t size)
 {
   // Standalone Contents.cnt: "CONT" magic at offset 0 (needs only 4 bytes)
   if (size >= 4 && memcmp(p, "CONT", 4) == 0)
+    return k_IsArc_Res_YES;
+  // Standalone FIRM: magic 'FIRM' at offset 0
+  if (size >= 4 && memcmp(p, "FIRM", 4) == 0)
     return k_IsArc_Res_YES;
   if (size < 0x104)
     return k_IsArc_Res_NEED_MORE;

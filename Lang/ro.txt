@@ -246,6 +246,8 @@ Arată liniile de &ghidare
 Click simplu pentru a deschide un obiect
 Mod de selecție &alternativ
 Utilizează pagini &mari de memorie
+2600
+Keystone
 2900
 Despre 7-Zip CTR
 7-Zip CTR este software gratuit.
@@ -533,4 +535,16 @@ Cantitatea maximă de utilizare a memoriei RAM permisă pentru despachetarea arh
 Despachetarea arhivei a fost omisă.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Dosar cu chei AES Retail 3DS
+15002
+Dosar cu chei AES Devkit 3DS
+15003
+Resetează la valorile implicite
+15004
+Deschide dosarul
+15005
+Selectează dosarul cu chei AES Retail 3DS
+15006
+Selectează dosarul cu chei AES Devkit 3DS

@@ -246,6 +246,8 @@ Mostra &quadricula
 Cliqueu una vegada per obrir element
 Mode de selecció &alternatiu
 Utilitza pàgines de memòria &grans
+2600
+Keystone
 2900
 Quant a 7-Zip CTR
 7-Zip CTR és un programa lliure.
@@ -533,4 +535,16 @@ Quantitat màxima d'ús de memòria RAM permés per desempaquetar fitxers:
 S'ha omès el desempaquetat de fitxers.
 
 15000
-Adnini983 AI 创作
+Adnini983 AI creation
+15001
+Retail 3DS AES key folder
+15002
+Devkit 3DS AES key folder
+15003
+Reset to defaults
+15004
+Open folder
+15005
+Select the retail 3DS AES key folder
+15006
+Select the devkit 3DS AES key folder

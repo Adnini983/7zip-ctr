@@ -974,10 +974,16 @@ void CPanel::OpenItem(unsigned index, bool tryInternal, bool tryExternal, const 
 {
   CDisableTimerProcessing disableTimerProcessing(*this);
   const UString name = GetItemRelPath2(index);
-  
+
   if (tryExternal)
     if (IsVirus_Message(name))
       return;
+
+  // CTR: NAND partitions (Partition_*.bin) are opened in place. Inside an
+  // archive _parentFolders is non-empty, so we fall through to
+  // OpenItemInArchive which mounts the live decrypting stream; at the FS root
+  // the standalone extracted partition blob goes through OpenAsArc_Index and is
+  // recognized directly by the built-in MbrHandler/FatHandler.
 
   if (!_parentFolders.IsEmpty())
   {
@@ -1493,6 +1499,11 @@ void CPanel::OpenItemInArchive(unsigned index, bool tryInternal, bool tryExterna
   if (tryExternal)
     if (IsVirus_Message(name))
       return;
+
+  // CTR: NAND partitions (Partition_*.bin) are opened in place through the
+  // handler's IInArchiveGetStream live decrypting stream (no 1 GB dump to
+  // temp). The stream branch below returns S_OK only for CTRNAND/TWL; other
+  // small blobs fall through to the normal non-archive no-op path.
 
   if (!_folderOperations)
   {
