@@ -510,3 +510,13 @@ Ireki karpeta
 Aukeratu Retail 3DS AES giltzen karpeta
 15006
 Aukeratu Devkit 3DS AES giltzen karpeta
+15007
+3DS kontsola bakarreko datuen karpeta
+15008
+Aukeratu 3DS kontsola bakarreko datuen karpeta
+15009
+Cachea berreraiki
+15010
+3DS FIRM gako publikoaren karpeta
+15011
+Aukeratu 3DS FIRM gako publikoaren karpeta

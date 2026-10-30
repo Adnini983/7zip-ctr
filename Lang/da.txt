@@ -510,3 +510,13 @@ Nulstil til standard
 Vælg mappe med Retail-3DS-AES-nøgler
 15006
 Vælg mappe med Devkit-3DS-AES-nøgler
+15007
+Mappe med unikke konsoldata 3DS
+15008
+Vælg mappe med unikke konsoldata 3DS
+15009
+Genopbyg cache
+15010
+Mappe til offentlig 3DS FIRM-nøgle
+15011
+Vælg mappe til offentlig 3DS FIRM-nøgle

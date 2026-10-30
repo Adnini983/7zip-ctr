@@ -548,3 +548,13 @@ Mappa megnyitása
 Retail 3DS AES kulcsmappa kiválasztása
 15006
 Devkit 3DS AES kulcsmappa kiválasztása
+15007
+3DS konzol egyedi adatmappája
+15008
+3DS konzol egyedi adatmappájának kiválasztása
+15009
+Gyorsítótár újraépítése
+15010
+3DS FIRM nyilvános kulcs mappája
+15011
+3DS FIRM nyilvános kulcs mappájának kiválasztása

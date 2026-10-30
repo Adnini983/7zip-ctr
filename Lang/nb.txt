@@ -419,3 +419,13 @@ Tilbakestill til standard
 Velg mappe med Retail-3DS-AES-nøkler
 15006
 Velg mappe med Devkit-3DS-AES-nøkler
+15007
+Mappe for unike konsoldata 3DS
+15008
+Velg mappe for unike konsoldata 3DS
+15009
+Bygg opp hurtigbuffer på nytt
+15010
+Mappe for offentlig 3DS FIRM-nøkkel
+15011
+Velg mappe for offentlig 3DS FIRM-nøkkel

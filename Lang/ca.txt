@@ -548,3 +548,13 @@ Obre la carpeta
 Selecciona la carpeta de claus AES del 3DS Retail
 15006
 Selecciona la carpeta de claus AES del 3DS Devkit
+15007
+Carpeta de dades úniques de consola 3DS
+15008
+Seleccioneu la carpeta de dades úniques de consola 3DS
+15009
+Reconstruir la memòria cau
+15010
+Carpeta de clau pública 3DS FIRM
+15011
+Seleccioneu la carpeta de clau pública 3DS FIRM

@@ -548,3 +548,13 @@ Abrir carpeta
 Seleccionar la carpeta de claves AES de 3DS Retail
 15006
 Seleccionar la carpeta de claves AES de 3DS Devkit
+15007
+Carpeta de datos únicos de consola 3DS
+15008
+Seleccionar carpeta de datos únicos de consola 3DS
+15009
+Reconstruir caché
+15010
+Carpeta de clave pública 3DS FIRM
+15011
+Seleccionar carpeta de clave pública 3DS FIRM

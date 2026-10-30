@@ -510,3 +510,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+3DS කොන්සෝල-විශේෂිත දත්ත ෆෝල්ඩරය
+15008
+3DS කොන්සෝල-විශේෂිත දත්ත ෆෝල්ඩරය තෝරන්න
+15009
+හැඹිලිය නැවත ගොඩනඟන්න
+15010
+3DS FIRM පොදු යතුරු ෆෝල්ඩරය
+15011
+3DS FIRM පොදු යතුරු ෆෝල්ඩරය තෝරන්න

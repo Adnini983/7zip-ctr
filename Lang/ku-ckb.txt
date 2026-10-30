@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+بوخچەی داتای تایبەتی کۆنسۆلی 3DS
+15008
+هەڵبژاردنی بوخچەی داتای تایبەتی کۆنسۆلی 3DS
+15009
+دووبارە دروستکردنەوەی کاش
+15010
+بوخچەی کلیلی گشتی 3DS FIRM
+15011
+هەڵبژاردنی بوخچەی کلیلی گشتی 3DS FIRM

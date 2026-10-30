@@ -548,3 +548,13 @@ Buka folder
 Pilih folder kunci AES Retail 3DS
 15006
 Pilih folder kunci AES Devkit 3DS
+15007
+Folder data unik konsol 3DS
+15008
+Pilih folder data unik konsol 3DS
+15009
+Bangun ulang cache
+15010
+Folder kunci publik 3DS FIRM
+15011
+Pilih folder kunci publik 3DS FIRM

@@ -548,3 +548,13 @@ Atverti aplanką
 Pasirinkite Retail 3DS AES raktų aplanką
 15006
 Pasirinkite Devkit 3DS AES raktų aplanką
+15007
+3DS konsolės unikalių duomenų aplankas
+15008
+Pasirinkti 3DS konsolės unikalių duomenų aplanką
+15009
+Atkurti talpyklą
+15010
+3DS FIRM viešojo rakto aplankas
+15011
+Pasirinkti 3DS FIRM viešojo rakto aplanką

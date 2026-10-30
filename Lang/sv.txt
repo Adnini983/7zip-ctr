@@ -529,3 +529,13 @@ Mapp med Devkit-3DS-AES-nycklar
 Välj mapp med Retail-3DS-AES-nycklar
 15006
 Välj mapp med Devkit-3DS-AES-nycklar
+15007
+Mapp med unika 3DS-konsoldata
+15008
+Välj mapp med unika 3DS-konsoldata
+15009
+Återskapa cache
+15010
+Mapp för offentlig 3DS FIRM-nyckel
+15011
+Välj mapp för offentlig 3DS FIRM-nyckel

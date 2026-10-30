@@ -419,3 +419,13 @@ Maak vouer oop
 Kies die vouer vir Retail 3DS AES-sleutels
 15006
 Kies die vouer vir Devkit 3DS AES-sleutels
+15007
+3DS-konsolespesifieke datalêer
+15008
+Kies 3DS-konsolespesifieke datalêer
+15009
+Herbou kas
+15010
+3DS FIRM publieke sleutel map
+15011
+Kies 3DS FIRM publieke sleutel map

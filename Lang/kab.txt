@@ -510,3 +510,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+Afaylu n isefka yudan n 3DS
+15008
+Fren afaylu n isefka yudan n 3DS
+15009
+Aledd n cache
+15010
+Afaylu n tsarut tabbant 3DS FIRM
+15011
+Fren afaylu n tsarut tabbant 3DS FIRM

@@ -510,3 +510,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+3DS konsolynyň üýtgeşik maglumat bukjasy
+15008
+3DS konsolynyň üýtgeşik maglumat bujkasyny saýlaň
+15009
+Keşi täzeden gurmak
+15010
+3DS FIRM açyk açaryň bukjasy
+15011
+3DS FIRM açyk açaryň bujkasyny saýlaň

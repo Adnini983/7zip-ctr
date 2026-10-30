@@ -2,7 +2,7 @@
 #include "../../GuiCommon.rc"
 
 #define xc OPTIONS_PAGE_XC_SIZE
-#define yc 128
+#define yc 160
 
 IDD_KEYSTONE  MY_PAGE
 #include "KeystonePage2.rc"

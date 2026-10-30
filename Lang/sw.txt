@@ -510,3 +510,13 @@ Fungua folda
 Chagua folda ya funguo za AES Retail 3DS
 15006
 Chagua folda ya funguo za AES Devkit 3DS
+15007
+Folda ya data ya kipekee ya konsole 3DS
+15008
+Chagua folda ya data ya kipekee ya konsole 3DS
+15009
+Jenga upya kashe
+15010
+Folda ya ufunguo wa umma 3DS FIRM
+15011
+Chagua folda ya ufunguo wa umma 3DS FIRM

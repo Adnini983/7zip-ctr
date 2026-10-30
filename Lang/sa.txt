@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+3DS कन्सोल-विशिष्टदत्तफोल्डर
+15008
+3DS कन्सोल-विशिष्टदत्तफोल्डरं चिनोतु
+15009
+संग्रहकोषं पुनर्निर्माणं
+15010
+3DS FIRM सार्वजनिककुञ्जीफोल्डर
+15011
+3DS FIRM सार्वजनिककुञ्जीफोल्डरं चिनोतु

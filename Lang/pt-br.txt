@@ -548,3 +548,13 @@ Abrir pasta
 Selecionar a pasta de chaves AES do 3DS Retail
 15006
 Selecionar a pasta de chaves AES do 3DS Devkit
+15007
+Pasta de dados exclusivos do console 3DS
+15008
+Selecionar pasta de dados exclusivos do console 3DS
+15009
+Reconstruir cache
+15010
+Pasta de chave pública 3DS FIRM
+15011
+Selecionar pasta de chave pública 3DS FIRM

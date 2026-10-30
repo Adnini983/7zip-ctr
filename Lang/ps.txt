@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+د 3DS کانسل ځانګړي معلوماتو فولډر
+15008
+د 3DS کانسل ځانګړي معلوماتو فولډر غوره کړئ
+15009
+کیش بیا جوړول
+15010
+د 3DS FIRM عامه کلي فولډر
+15011
+د 3DS FIRM عامه کلي فولډر غوره کړئ

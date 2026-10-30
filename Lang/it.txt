@@ -548,3 +548,13 @@ Apri cartella
 Seleziona la cartella delle chiavi AES 3DS Retail
 15006
 Seleziona la cartella delle chiavi AES 3DS Devkit
+15007
+Cartella dati unici console 3DS
+15008
+Selezionare la cartella dati unici console 3DS
+15009
+Ricostruisci la cache
+15010
+Cartella chiave pubblica 3DS FIRM
+15011
+Selezionare la cartella chiave pubblica 3DS FIRM

@@ -529,3 +529,13 @@ Avaa kansio
 Valitse Retail 3DS AES-avainkansio
 15006
 Valitse Devkit 3DS AES-avainkansio
+15007
+3DS-konsolin yksilöllisen tiedon kansio
+15008
+Valitse 3DS-konsolin yksilöllisen tiedon kansio
+15009
+Rakenna välimuisti uudelleen
+15010
+3DS FIRM -julkisen avaimen kansio
+15011
+Valitse 3DS FIRM -julkisen avaimen kansio

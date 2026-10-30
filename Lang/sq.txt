@@ -419,3 +419,13 @@ Hap dosjen
 Zgjidh dosjen e çelësave AES Retail 3DS
 15006
 Zgjidh dosjen e çelësave AES Devkit 3DS
+15007
+Dosja e të dhënave unike të konsolës 3DS
+15008
+Zgjidh dosjen e të dhënave unike të konsolës 3DS
+15009
+Rindërto cache-in
+15010
+Dosja e çelësit publik 3DS FIRM
+15011
+Zgjidh dosjen e çelësit publik 3DS FIRM

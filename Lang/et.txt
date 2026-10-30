@@ -419,3 +419,13 @@ Ava kaust
 Vali Retail 3DS AES-võtmete kaust
 15006
 Vali Devkit 3DS AES-võtmete kaust
+15007
+3DS-konsooli unikaalsete andmete kaust
+15008
+Vali 3DS-konsooli unikaalsete andmete kaust
+15009
+Ehita vahemälu uuesti
+15010
+3DS FIRM avaliku võtme kaust
+15011
+Vali 3DS FIRM avaliku võtme kaust

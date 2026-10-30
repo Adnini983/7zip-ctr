@@ -419,3 +419,13 @@ Open folder
 Select the retail 3DS AES key folder
 15006
 Select the devkit 3DS AES key folder
+15007
+Karteto di datumi unika di konzolo 3DS
+15008
+Selektez karteto di datumi unika di konzolo 3DS
+15009
+Rikonstruktar la memora kasheyo
+15010
+Karteto di publika klefo 3DS FIRM
+15011
+Selektez karteto di publika klefo 3DS FIRM

@@ -548,3 +548,13 @@ Map openen
 Selecteer de map met Retail-3DS-AES-sleutels
 15006
 Selecteer de map met Devkit-3DS-AES-sleutels
+15007
+Map met unieke 3DS-consolegegevens
+15008
+Map met unieke 3DS-consolegegevens selecteren
+15009
+Cache opnieuw opbouwen
+15010
+Map met openbare 3DS FIRM-sleutel
+15011
+Map met openbare 3DS FIRM-sleutel selecteren

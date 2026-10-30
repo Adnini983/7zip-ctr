@@ -11,11 +11,13 @@ class CKeystonePage : public NWindows::NControl::CPropertyPage
   NWindows::NControl::CDialogChildControl m_RetailPath;
   NWindows::NControl::CDialogChildControl m_DevPath;
   NWindows::NControl::CDialogChildControl m_DevicePath;
+  NWindows::NControl::CDialogChildControl m_FirmPath;
 
   UString m_IniPath;        // resolved keystone.ini location
   UString m_DefaultRetail;  // built-in default (absolute, resolved)
   UString m_DefaultDev;
   UString m_DefaultDevice;
+  UString m_DefaultFirm;
 
   bool _needSave;
   bool _initMode;

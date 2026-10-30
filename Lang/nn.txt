@@ -419,3 +419,13 @@ Opna mappe
 Vel mappe med Retail-3DS-AES-nøklar
 15006
 Vel mappe med Devkit-3DS-AES-nøklar
+15007
+Mappe for unike konsoldata 3DS
+15008
+Vel mappe for unike konsoldata 3DS
+15009
+Bygg opp att mellomlageret
+15010
+Mappe for offentleg 3DS FIRM-nøkkel
+15011
+Vel mappe for offentleg 3DS FIRM-nøkkel

@@ -548,3 +548,13 @@ Otwórz folder
 Wybierz folder kluczy AES Retail 3DS
 15006
 Wybierz folder kluczy AES Devkit 3DS
+15007
+Folder unikalnych danych konsoli 3DS
+15008
+Wybierz folder unikalnych danych konsoli 3DS
+15009
+Przebuduj pamięć podręczną
+15010
+Folder klucza publicznego 3DS FIRM
+15011
+Wybierz folder klucza publicznego 3DS FIRM
