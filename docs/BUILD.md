@@ -109,6 +109,32 @@ build\
 “Adnini983 AI 创作”署名串）；`keystone` / `seeddb` 见
 [docs/KEYS.md](KEYS.md) 与 [docs/EXTRACT_KEYS.md](EXTRACT_KEYS.md)。
 
+## 安装包（x64.exe）与卸载器
+
+安装包不是压缩格式，而是**「安装 stub + 7z 归档」的字节拼接**：
+
+```bat
+rem 1) stub（安装路径 / 注册表 / Publisher 全在里面）
+cd C\Util\7zipInstall
+nmake /F makefile Z7_64BIT_INSTALLER=1        rem -> x64\7zipInstall.exe，约 146432B
+
+rem 2) payload：把与 x64.zip 相同的交付目录打成 7z
+cd <交付目录>
+7z a -t7z -m0=LZMA -ms=on ..\payload.7z .\* -r
+
+rem 3) 拼接（新 stub 的长度取实际文件大小，不要写死）
+copy /b x64\7zipInstall.exe + payload.7z ..\7zip-ctr-26.04-CTR02-x64.exe
+```
+
+- 归档参数必须用 `-m0=LZMA -ms=on`：`BCJ2` / `-mx9` / 大字典都会让 stub 报
+  `Decoder doesn't support this archive`（stub 只带精简解码器）。
+- 拼好后 `7z l x64.exe` 应显示 `Offset = <stub 大小>`；stub 靠签名搜索定位归档，
+  所以 stub 尺寸变化**不影响**拼接结果。
+- 卸载器 `Uninstall.exe` 来自 `C\Util\7zipUninstall`（约 115200B），**不是**把
+  `7zipInstall.exe` 改名——见上方打包易错点。
+- 变更 stub 后建议先在隔离目录跑一次 `安装包 /S /D=<无空格路径>` 再卸载，确认
+  装/卸都正常（会写 HKLM，勿在已装有机器的路径上做）。
+
 ## 自测
 
 构建后用 7z 命令行验证：
