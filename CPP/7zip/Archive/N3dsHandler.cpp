@@ -734,6 +734,9 @@ static void CDsiNormalKey(Byte nk[16], const Byte *kxBytes16, bool dev)
 // TWL AES-CTR: same BE counter progression as 3DS CTR, but every 16-byte block
 // reverses its bytes before feeding the stream and reverses the output block
 // (DSi endianness). Equivalent to out[j] = in[j] XOR AES_enc(ctr)[15-j].
+// The keystream byte position is relative to the 16-byte physical block that
+// contains offBytes (DSi engine reverses each physical block), so a head chunk
+// that starts at a non-aligned offset uses ks[15-rel .. 0] of the block.
 static void AesCtr_DecodeTwl(const Byte *key, const Byte *ctr128, UInt64 offBytes, Byte *data, size_t size)
 {
   __declspec(align(16)) UInt32 aes[AES_NUM_IVMRK_WORDS];
@@ -2145,9 +2148,8 @@ Z7_COM7F_IMF(CDecryptNandStream::Read(void *data, UInt32 size, UInt32 *processed
           {
             UInt64 s = (cur > kMbrLo) ? cur : kMbrLo;
             UInt64 e = (cur + avail < kMbrHi) ? cur + avail : kMbrHi;
-            Byte mbr[0x42];
-            AesCtr_DecodeTwl(Key, Ctr, s, mbr, (size_t)(e - s));
-            memcpy(out + p + (size_t)(s - cur), mbr, (size_t)(e - s));
+            // Decrypt in place: out already holds the raw ciphertext just read.
+            AesCtr_DecodeTwl(Key, Ctr, s, out + p + (size_t)(s - cur), (size_t)(e - s));
           }
           size_t step = (size_t)(kPlainEnd - cur);
           if (step > avail) step = avail;
@@ -4120,10 +4122,9 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
                   {
                     UInt64 s = (a > kMbrLo) ? a : kMbrLo;
                     UInt64 e = (a + avail < kMbrHi) ? a + avail : kMbrHi;
-                    Byte mbr[0x42];
+                    // Decrypt in place: cb already holds the raw ciphertext.
                     AesCtr_DecodeTwl(item.InnerKey, item.InnerCtr,
-                        s, mbr, (size_t)(e - s));
-                    memcpy(cb + p + (size_t)(s - a), mbr, (size_t)(e - s));
+                        s, cb + p + (size_t)(s - a), (size_t)(e - s));
                   }
                   size_t step = (size_t)(kTwlPlainEnd - a);
                   if (step > avail) step = avail;
