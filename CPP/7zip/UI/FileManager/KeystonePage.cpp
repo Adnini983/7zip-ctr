@@ -69,6 +69,10 @@ void CKeystonePage::ModifiedEvent()
   }
 }
 
+// The folder-icon decoration below is disabled: it caused a crash in the
+// options dialog (heap corruption 0xc0000374 / access violation 0xc0000005
+// in ntdll). Kept out permanently; only the "open folder" button action is used.
+#if 0
 // Yellow folder icon: prefer the one shipped inside explorer.exe (icon index 0),
 // fall back to the system folder icon resolved from a real directory path.
 static HICON GetFolderIconSmall(const UString &dirPath)
@@ -98,6 +102,7 @@ static void SetFolderIcon(HWND dlg, int controlID, const UString &dirPath)
   SetWindowLongPtrW(b, GWL_STYLE, style | BS_ICON);
   SendMessageW(b, BM_SETICON, (WPARAM)IMAGE_ICON, (LPARAM)h);
 }
+#endif
 
 void CKeystonePage::BrowsePath(NWindows::NControl::CDialogChildControl &edit, const UString &title)
 {
@@ -149,11 +154,6 @@ bool CKeystonePage::OnInit()
   LangSetDlgItemText(*this, IDT_KEYSTONE_RESET, IDT_KEYSTONE_RESET);
   LangSetDlgItemText(*this, IDB_KEY_REBUILD_CACHE, IDT_KEYSTONE_REBUILD_CACHE);
   #endif
-
-  SetFolderIcon(*this, IDB_KEY_RETAIL_OPEN, exeDir);
-  SetFolderIcon(*this, IDB_KEY_DEV_OPEN, exeDir);
-  SetFolderIcon(*this, IDB_KEY_DEVICE_OPEN, exeDir);
-  SetFolderIcon(*this, IDB_KEY_FIRM_OPEN, exeDir);
 
   m_RetailPath.Init(*this, IDE_KEY_RETAIL_PATH);
   m_DevPath.Init(*this, IDE_KEY_DEV_PATH);

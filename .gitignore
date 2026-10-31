@@ -45,3 +45,6 @@ research_pyctr/
 NATIVE_FIRM/
 **/NATIVE_FIRM/
 keystone.cache
+
+# AI Agent 对接文档（内部资料，不随仓库发布）
+AI_AGENT_INTEGRATION.md
