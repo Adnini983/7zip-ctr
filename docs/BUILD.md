@@ -10,13 +10,29 @@
 
 ## 源码位置
 
-```
-src\7zip-26.04\
-   CPP\7zip\Archive\N3dsHandler.cpp   # 3DS handler（唯一新增/改动文件）
-```
+**克隆下来的仓库根目录本身就是 7-Zip 26.04 源码树**（不是 `src\7zip-26.04\`——那是旧的
+本地快照，已废弃，里面没有 NAND/FIRM/选项页等 CTR02 功能）。所有编译命令都在仓库根
+目录下执行。
 
 `N3dsHandler.cpp` 已通过 `REGISTER_ARC_I_NO_SIG("3DS", "3ds cci 3dz csu ncch cxi cfa app cia firm cnt bin romfs exefs tmd", …)`
 注册为 7-Zip 内置 handler，随 `7z.dll` 一起编译（Fm 版则静态内嵌同一份 handler）。
+
+### 相对官方 7-Zip 26.04 的改动清单
+
+以官方源码为基准：**新增 128 个文件、修改 82 个、无删除**。按功能分组：
+
+| 分组 | 文件 |
+|---|---|
+| 3DS handler | `CPP\7zip\Archive\N3dsHandler.cpp`（新增，本项目核心） |
+| 选项页「密钥库」 | `CPP\7zip\UI\FileManager\KeystonePage{.h,.cpp,.rc}`、`KeystonePage2.rc`、`KeystonePageRes.h`（新增 5 个）；`OptionsDialog.cpp`、`resource.rc`、`FM.mak` 挂载 |
+| 注册与图标 | `CPP\7zip\Bundles\Format7zF\{Arc.mak,resource.rc}`、`CPP\7zip\Archive\ArchiveExports.cpp`、`Icons\*.ico`（新增 41 个 3DS 图标，另重制 30 个官方图标） |
+| 宿主侧通路 | `UI\Common\OpenArchive.cpp`（`Z7CTR_SRC_PATH`/`Z7CTR_GUI`）、`UI\FileManager\PanelItemOpen.cpp`、`UI\Agent\ArchiveFolderOpen.cpp`、`UI\Console\Main.cpp`（`-unit/-type/-slot`）、`UI\Client7z\Client7z.cpp`、`Common\FileStreams.{h,cpp}` |
+| 品牌与版本 | `C\7zVersion.h`、`C\7zVersion.rc`、各 `resource.rc` / `*.manifest` / `AboutDialog.*` / `App.cpp` / `FM.cpp` / `Panel*.cpp` 等改名的 30+ 个文件 |
+| 安装器 / 卸载器 | `C\Util\7zipInstall\{7zipInstall.c,resource.rc,manifest,makefile}`、`C\Util\7zipUninstall\{7zipUninstall.c,resource.rc}` |
+| 构建 | `CPP\Build.mak`（公共 CFLAGS 追加 `/Y-`，绕开 CI 的 C2855）、`Bundles\Format7zF\build_dll.bat`、`Bundles\Fm\build_fm.bat` |
+| 语言包 | `Lang\`（93 个文件：官方 92 语种 + `en.ttt` 模板，已并入改名与署名串） |
+| 配置模板 | `keystone.ini`、`pubkey.ini` |
+| 文档 / 工具 / CI | `README.md`、`docs\{BUILD,USAGE,KEYS,EXTRACT_KEYS,NAND}.md`、`gm9tools\*`、`.github\workflows\build.yml`、`.gitignore`、`LICENSE.md` |
 
 ## 编译步骤
 
@@ -75,12 +91,19 @@ CPP\7zip\UI\Console         -> x64\7z.exe      （命令行，依赖同目录 7z
 
 ```
 build\
-   7z.exe  7zFM.exe  7z.dll  7zG.exe  7z.sfx  …
-   Lang\              多语言（zh-cn/zh-tw 等）
+   7z.exe  7zFM.exe  7z.dll  7zG.exe  7-zip.dll  7-zip32.dll  7z.sfx  7zCon.sfx
+   Uninstall.exe      独立卸载器（C\Util\7zipUninstall 产物，约 115200B）
+   readme.txt         从仓库根 readme.txt 复制
+   Lang\              多语言（92 个语种）
    keystone\ctraes_retail\  keystone\ctraes_dev\   seeddb.bin
+   keystone\pubkey\   （可选）pubkey.ini + retail/dev_firm_pubkey.bin，FIRM 验签用
    keystone.ini       （仓库根自带模板，随交付目录一起复制；键名
-                       RetailCTRAESKeyDir=/DevCTRAESKeyDir=，留空=默认）
+                       RetailCTRAESKeyDir=/DevCTRAESKeyDir= 等，留空=默认）
 ```
+
+> **打包易错点**：`Uninstall.exe` 必须是 `C\Util\7zipUninstall` 的产物（约 115200B，
+> 字符串含 `Uninstall 7-Zip CTR`），**不要**把 `7zipInstall.exe`（安装 stub，
+> 约 146432B）改名成 `Uninstall.exe`——那会把"卸载"变成启动安装向导。
 
 `Lang\` 直接取自仓库根目录（基于 7-Zip 官方语言包，已并入本项目的改名与
 “Adnini983 AI 创作”署名串）；`keystone` / `seeddb` 见
@@ -97,3 +120,12 @@ build\7z.exe l "SystemUpdater_CTR-0_35_0-EU.csu"
 应看到 `.code`、RomFS、`contents\Contents.cnt` 及按 title id 命名的
 多个 `.cia` 子项。再对任一 `.cia` 双击 / `7z l`，确认能解密
 `Content_0.cxi`。
+
+NAND 回归（手边有实机备份时；验收只看产物明文，不看退出码）：
+
+```bat
+build\7z.exe l "nand.bin"
+rem  应列出 TWL / AGB_Save / Firm0 / Firm1 / CTRNAND 共 5 项
+build\7z.exe e "nand.bin" "Partition_2_Firm0.bin" -otest -y
+rem  抽出的 Firm0 头 4 字节必须是 "FIRM"；TWL 抽出的 0x1FE 必须是 55 AA
+```
