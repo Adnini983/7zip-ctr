@@ -270,14 +270,12 @@ keystone\ctrdevice\QW00004551_dev\
 
 ---
 
-## 7. 已知限制
+## 7. 已知限制与验证状态
 
-- **TWL（slot0x03）分区已解密为整段虚拟镜像**（`Partition_0_TWL.bin`，约 177 MiB），
+- **TWL（slot0x03）分区已解密为整段虚拟镜像**（`Partition_0_TWL.bin`，约 185 MiB），
   但目前只做到分区级解密挂载：解出的 twln（FAT16，DSiWare）/ twlp（FAT12，照片）
   内部目录遍历、以及 DSiWare title 自身的一层加密尚未展开。
-- TWL 的零售机（retail）KeyX 分支代码已具备，但本机两台均为开发机，未经零售
-  设备档案实测。
 - 仅做**只读解密挂载**，不支持写回、重新加密或导出加密镜像。
-- 本版已用两台开发机备份（一台 New3DS snake、一台 Old3DS ctr）做过 slot0x04/05/
-  06/07 与 TWL(slot0x03) 的逐字节比对；零售机备份的派生分支代码已具备，但需自备
-  零售设备档案验证。
+- **验证状态**：三台实机备份（New3DS dev / SNAKE、Old3DS dev / CTR、零售 New3DS LL）
+  × 5 个分区（TWL / AGB_Save / Firm0 / Firm1 / CTRNAND）共 15 对输出，与独立参考实现
+  的 SHA-256 **全部逐字节一致**——含零售机的 TWL（slot0x03）派生分支。

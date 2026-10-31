@@ -42,16 +42,26 @@ slot0x2CKeyX=510207515507CBB18E243DCB85E23A1D
 RetailCTRAESKeyDir=D:\3ds-keys\retail
 DevCTRAESKeyDir=D:\3ds-keys\dev
 DeviceDataDir=D:\3ds-keys\ctrdevice
+FirmPubKeyDir=D:\3ds-keys\pubkey
+Language=zh
 ```
 
-- `RetailCTRAESKeyDir`：零售机密钥目录；`DevCTRAESKeyDir`：开发机密钥目录；
-  `DeviceDataDir`：本机 NAND 设备唯一数据目录（默认 `keystone\ctrdevice`，见 NAND.md）。
+`[Keystone]` 段一共 5 个键：
+
+| 键 | 作用 | 默认值（相对 `7z.dll` 目录） |
+|---|---|---|
+| `RetailCTRAESKeyDir` | 零售机 AES 密钥目录 | `keystone\ctraes_retail` |
+| `DevCTRAESKeyDir` | 开发机 AES 密钥目录 | `keystone\ctraes_dev` |
+| `DeviceDataDir` | 本机 NAND 设备唯一数据目录（boot9 / OTP / NAND CID），见 [NAND.md](NAND.md) | `keystone\ctrdevice` |
+| `FirmPubKeyDir` | FIRM RSA-2048 公钥目录（目录内另有独立 `pubkey.ini` 管理，见第 7 节） | `keystone\pubkey` |
+| `Language` | 7zFM 里 NAND 裸材料弹窗与错误提示的语种：`zh` 强制中文、`en` 强制英文 | 留空 = 跟随系统 UI 语言（中文系统即中文） |
+
 - 填**绝对路径**（`D:\…`、`\\server\share\…`）直接使用。
 - 填**相对路径**时，相对 `7z.dll` 所在目录解析；留空（或删掉该键）
-  回落到默认的 `keystone\ctraes_retail` / `keystone\ctraes_dev` / `keystone\ctrdevice`。
+  回落到上表的默认目录。
 - 也可以在 `7zFM.exe` 里用「选项 → 密钥库（Keystone）」页直接浏览指定，
-  每行右侧有浏览「…」与打开文件夹按钮；点「恢复默认值」即恢复默认并清空对应键；
-  保存时由程序写回本文件。
+  四行路径各有浏览「…」与「打开文件夹」按钮；点「恢复默认值」即恢复默认并清空对应键；
+  保存时由程序写回本文件。`Language` 目前只能手改 `keystone.ini`（不在选项页里）。
 
 > `seeddb.bin` 的位置不受本配置影响，始终读取 `7z.dll` 同目录。
 
@@ -116,3 +126,43 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
   拷到 `7z.dll` 同目录即可（或在 `keystone.ini` / 「选项 → 密钥库（Keystone）」里指向别处）。
 
 详见 [EXTRACT_KEYS.md](EXTRACT_KEYS.md)。
+
+## 7. FIRM 公钥目录（`keystone\pubkey`）
+
+`.firm` 镜像的 RSA-2048 签名校验（属性页里的 `FIRM Signature`：Valid / Sighax /
+Corrupt-missing）需要**任天堂的 FIRM 公钥**——这是**公开的公钥**，不是 AES 密钥，
+和 ROM 解密用的密钥是两回事。
+
+目录由 `keystone.ini` 的 `FirmPubKeyDir=` 指定（默认 `keystone\pubkey`），
+而**目录内部**由一份独立的 `pubkey.ini` 管理（`[FirmPubKey]` 段）：
+
+```
+<7z.dll 所在目录>\
+   keystone\pubkey\
+      pubkey.ini                目录自己的配置
+      retail_firm_pubkey.bin    256B 大端 modulus（boot9 keyslot1 NAND-FIRM @0xB1E0）
+      dev_firm_pubkey.bin       256B 大端 modulus（boot9 keyslot1 NAND-FIRM @0xC4E0）
+```
+
+`pubkey.ini` 支持两种给法，Hex 优先于 File：
+
+```ini
+[FirmPubKey]
+RetailFirmPubKeyHex=            ; 512 个十六进制字符（256 字节 modulus），优先级最高
+DevFirmPubKeyHex=
+RetailFirmPubKeyFile=retail_firm_pubkey.bin
+DevFirmPubKeyFile=dev_firm_pubkey.bin
+```
+
+加载顺序（任一成功即停止）：
+
+1. `keystone.ini` 的 `RetailFirmPubKeyHex=` / `DevFirmPubKeyHex=`；
+2. `keystone.ini` 的 `RetailFirmPubKeyFile=` / `DevFirmPubKeyFile=`；
+3. `FirmPubKeyDir` 下 `pubkey.ini` 里的 Hex 键 → File 键；
+4. `keystone.ini` 的 `FirmBoot9Path=`（显式给一份 64KB boot9.bin 全路径）；
+5. 扫描 `DeviceDataDir` 各设备子目录的 `ctrindex.ini`，用其中的 `boot9=` 定位 boot9.bin；
+6. 全部失败 → **不校验签名**，属性页显示 `Not verified (no public key loaded)`（不误判、不影响段挂载）。
+
+> Release 包内 `keystone\pubkey\` 已附带 `pubkey.ini` 与两份公开 modulus；
+> 该目录**不得**放 `boot9.bin`——只要 modulus 就够了。
+> 校验结果（type=3 记录）也会并入 `keystone\cache\keystone.cache`，点「重置缓存」可清空重算。

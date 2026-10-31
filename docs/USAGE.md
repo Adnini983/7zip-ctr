@@ -18,10 +18,13 @@ build\
       ctraes_retail\ 零售机密钥（从实机提取）
       ctraes_dev\     开发机密钥
       ctrdevice\<SN>\  （可选）本机 NAND 设备档案，仅本地、勿分发，见 NAND.md
+      pubkey\         （可选）FIRM 公钥目录：pubkey.ini + retail/dev_firm_pubkey.bin
+                      （公开公钥，非 AES 密钥；用于 .firm 签名三态，见 KEYS.md 第 7 节）
       cache\keystone.cache （程序自动生成）统一二进制缓存：设备派生结果 + AES 密钥表，
                           带索引、数据区轻量混淆；含本机密钥，仅本地、不可共享、勿分发
    keystone.ini      （包内已附模板；留空=用上面默认目录，可自定义位置）
    seeddb.bin        可选 seed 数据库
+   readme.txt        版本与功能说明（离线可读）
 ```
 
 > 默认密钥目录为 **`7z.dll` 同目录** 的 `keystone\ctraes_retail` /

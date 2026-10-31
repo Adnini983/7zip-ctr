@@ -4139,12 +4139,11 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
             if (_chunkBuf.Size() < kChunk)
               _chunkBuf.Alloc(kChunk);
             Byte *cb = _chunkBuf;
-            HRESULT hrS = Seek(item.Offset + done);
-            if (done == 0) 
-            RINOK(hrS);
-            HRESULT hrR = ReadF(cb, want);
-            if (done == 0) 
-            RINOK(hrR);
+            // Every chunk must be checked: a short read (truncated image) or a
+            // failed seek would otherwise decrypt the previous chunk's leftovers
+            // and silently emit corrupt data while the operation reports success.
+            RINOK(Seek(item.Offset + done));
+            RINOK(ReadF(cb, want));
             // counter base = absolute offset of this chunk; the decoder adds
             // offBytes/16 to the nonce.
             if (item.StreamTwl)
@@ -4189,9 +4188,7 @@ Z7_COM7F_IMF(CHandler::Extract(const UInt32 *indices, UInt32 numItems,
             else
               AesCtr_Decode3ds(item.InnerKey, item.InnerCtr,
                   item.Offset + done, cb, want);
-            HRESULT hrW = WriteStream(outStream, cb, want);
-            if (done == 0) 
-            RINOK(hrW);
+            RINOK(WriteStream(outStream, cb, want));
             done += want;
             reported += want;
             RINOK(extractCallback->SetCompleted(&reported));
