@@ -1,4 +1,4 @@
-// N3dsHandler.cpp
+﻿// N3dsHandler.cpp
 // Nintendo 3DS container formats: CIA, NCSD (.3ds), NCCH (CXI/CFA), ExeFS, RomFS.
 // Read-only archive handler for 7-Zip (inspired by 7-Zip ZS codec integration).
 
@@ -1708,6 +1708,24 @@ static int GuiAskYesNoCancel(LPCWSTR text)
   return pMB(NULL, text, L"7-Zip CTR", MB_YESNOCANCEL | MB_ICONQUESTION);
 }
 
+// 7-Zip CTR: NAND open prompts/report boxes follow the UI language. Optional
+// override: keystone.ini [Keystone] Language=zh / en (any zh*/en* prefix);
+// otherwise the system UI language (primary LANGID == LANG_CHINESE) decides.
+static bool WantChineseText()
+{
+  UString lang = ReadKeystoneIni(GetDllDirectory(), L"Language");
+  if (!lang.IsEmpty())
+  {
+    wchar_t c = lang[0];
+    if (c == L'z' || c == L'Z')
+      return true;
+    if (c == L'e' || c == L'E')
+      return false;
+  }
+  LANGID lid = GetUserDefaultUILanguage();
+  return PRIMARYLANGID(lid) == LANG_CHINESE;
+}
+
 static int ReadBareEnv(const wchar_t *name, wchar_t *buf, unsigned cap)
 {
   DWORD n = GetEnvironmentVariableW(name, buf, cap);
@@ -1766,12 +1784,19 @@ static int ResolveBareProfile(const UString &dir)
     return kBareNeedParam;
 
   // ---- GUI two-step prompt ----
+  const bool zh = WantChineseText();
   int r1 = GuiAskYesNoCancel(
-      L"Device material was found next to nand.bin, but the console type is not declared.\n\n"
-      L"Which unit is this console?\n"
-      L"  Yes = Retail unit\n"
-      L"  No  = Devkit unit\n"
-      L"  Cancel = abort");
+      zh
+      ? L"在 nand.bin 旁检测到设备材料，但未声明控制台类型。\n\n"
+        L"该主机属于哪类单元？\n"
+        L"  是 = 零售单元\n"
+        L"  否 = 开发套件单元\n"
+        L"  取消 = 中止"
+      : L"Device material was found next to nand.bin, but the console type is not declared.\n\n"
+        L"Which unit is this console?\n"
+        L"  Yes = Retail unit\n"
+        L"  No  = Devkit unit\n"
+        L"  Cancel = abort");
   if (r1 == IDCANCEL)
     return kBareCancel;
   g_bareProfile.IsDev = (r1 == IDNO);
@@ -1779,10 +1804,15 @@ static int ResolveBareProfile(const UString &dir)
   if (g_bareProfile.IsDev)
   {
     int r2 = GuiAskYesNoCancel(
-        L"Which development board type?\n"
-        L"  Yes = CTR\n"
-        L"  No  = SNAKE\n"
-        L"  Cancel = abort");
+        zh
+        ? L"哪种开发板类型？\n"
+          L"  是 = CTR\n"
+          L"  否 = SNAKE\n"
+          L"  取消 = 中止"
+        : L"Which development board type?\n"
+          L"  Yes = CTR\n"
+          L"  No  = SNAKE\n"
+          L"  Cancel = abort");
     if (r2 == IDCANCEL)
       return kBareCancel;
     g_bareProfile.IsSnake = (r2 == IDNO);
@@ -1790,10 +1820,15 @@ static int ResolveBareProfile(const UString &dir)
   else
   {
     int r2 = GuiAskYesNoCancel(
-        L"Which retail model?\n"
-        L"  Yes = Old 3DS / 2DS (slot 0x04)\n"
-        L"  No  = New 3DS / 2DS (slot 0x05)\n"
-        L"  Cancel = abort");
+        zh
+        ? L"哪种零售机型？\n"
+          L"  是 = 旧款 3DS / 2DS（槽位 0x04）\n"
+          L"  否 = 新款 3DS / 2DS（槽位 0x05）\n"
+          L"  取消 = 中止"
+        : L"Which retail model?\n"
+          L"  Yes = Old 3DS / 2DS (slot 0x04)\n"
+          L"  No  = New 3DS / 2DS (slot 0x05)\n"
+          L"  Cancel = abort");
     if (r2 == IDCANCEL)
       return kBareCancel;
     g_bareProfile.SlotWanted = (r2 == IDNO) ? 5 : 4;
@@ -3303,28 +3338,44 @@ static HRESULT ReportNandNoDevice(int reason)
 #pragma warning(pop)
       if (pMB)
       {
+        const bool zh = WantChineseText();
         LPCWSTR msg;
         if (reason == 0)
-          msg = L"No 3DS device key material was found.\n\n"
-                L"Place boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
-                L"next to nand.bin, or register this console under keystone\\ctrdevice.";
+          msg = zh
+            ? L"未找到 3DS 设备密钥材料。\n\n"
+              L"请将 boot9.bin、OTP 转储（otp.mem / otp_dec.mem）与 nand_cid.mem "
+              L"放在 nand.bin 旁，或在 keystone\\ctrdevice 下登记该主机。"
+            : L"No 3DS device key material was found.\n\n"
+              L"Place boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
+              L"next to nand.bin, or register this console under keystone\\ctrdevice.";
         else if (reason == 2)
-          msg = L"Device material next to nand.bin is incomplete.\n\n"
-                L"boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
-                L"are all required in the same folder, or register this console "
-                L"under keystone\\ctrdevice.";
+          msg = zh
+            ? L"nand.bin 旁的设备材料不完整。\n\n"
+              L"boot9.bin、OTP 转储（otp.mem / otp_dec.mem）与 nand_cid.mem "
+              L"都必须位于同一文件夹，或在 keystone\\ctrdevice 下登记该主机。"
+            : L"Device material next to nand.bin is incomplete.\n\n"
+              L"boot9.bin, an OTP dump (otp.mem / otp_dec.mem) and nand_cid.mem "
+              L"are all required in the same folder, or register this console "
+              L"under keystone\\ctrdevice.";
         else if (reason == 3)
-          msg = L"Opening was cancelled.";
+          msg = zh ? L"打开操作已取消。" : L"Opening was cancelled.";
         else if (reason == 4)
-          msg = L"Bare device material needs -unit retail|dev on the command line "
-                L"(this console host cannot show the prompt).";
+          msg = zh
+            ? L"裸设备材料需要在命令行指定 -unit retail|dev（当前控制台宿主无法显示选择提示）。"
+            : L"Bare device material needs -unit retail|dev on the command line "
+              L"(this console host cannot show the prompt).";
         else if (reason == 5)
-          msg = L"Invalid device parameter. Use -unit retail|dev, -type ctr|snake, "
-                L"-slot 4|5.";
+          msg = zh
+            ? L"设备参数无效。请使用 -unit retail|dev、-type ctr|snake、-slot 4|5。"
+            : L"Invalid device parameter. Use -unit retail|dev, -type ctr|snake, "
+              L"-slot 4|5.";
         else
-          msg = L"The available device material does not match this nand.bin "
-                L"(CTRNAND MBR signature could not be decrypted).\n\n"
-                L"Check that boot9.bin, OTP and nand_cid.mem belong to the same console.";
+          msg = zh
+            ? L"可用的设备材料与此 nand.bin 不匹配（CTRNAND MBR 签名无法解密）。\n\n"
+              L"请确认 boot9.bin、OTP 与 nand_cid.mem 属于同一台主机。"
+            : L"The available device material does not match this nand.bin "
+              L"(CTRNAND MBR signature could not be decrypted).\n\n"
+              L"Check that boot9.bin, OTP and nand_cid.mem belong to the same console.";
         UINT icon = (reason == 3) ? MB_OK | MB_ICONINFORMATION : (MB_OK | MB_ICONWARNING);
         pMB(NULL, msg, L"7-Zip CTR", icon);
       }
@@ -3364,10 +3415,8 @@ static const CDeviceNand *TryMatchDevices(const CObjectVector<CDeviceNand> &devs
 // region becomes a virtual partition image streamed with AES-CTR on extract.
 HRESULT CHandler::ParseNandNcsd(UInt64 base)
 {
-  
   Byte hdr[0x200];
   RINOK(ReadAt(base, hdr, 0x200));
-  
 
   // Registered devices from keystone\ctrdevice are tried first; only when none
   // matches do we fall back to bare material beside nand.bin (which needs an
