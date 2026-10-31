@@ -897,6 +897,55 @@ int Main2(
     commandStrings.Delete(0);
   #endif
 
+  #ifdef _WIN32
+  // 7-Zip CTR: bare NAND profile switches (-unit=retail|dev, -type=ctr|snake,
+  // -slot=4|5, also the "-unit retail" two-token form). Consumed here before the
+  // standard parser and forwarded to the dll via env vars so the 3DS NAND handler
+  // can resolve the console profile when no ctrindex.ini sits next to nand.bin.
+  for (unsigned i = 0; i < commandStrings.Size(); )
+  {
+    const UString &s = commandStrings[i];
+    const wchar_t *p = s.Ptr();
+    int sw = -1;   // 0 = unit, 1 = type, 2 = slot
+    if (p[0] == L'-' && s.Len() >= 5)
+    {
+      if (wcsncmp(p, L"-unit", 5) == 0) sw = 0;
+      else if (wcsncmp(p, L"-type", 5) == 0) sw = 1;
+      else if (wcsncmp(p, L"-slot", 5) == 0) sw = 2;
+    }
+    if (sw >= 0 && (p[5] == L'=' || p[5] == 0))
+    {
+      UString val;
+      if (p[5] == L'=')
+        val = s.Ptr(6);
+      else if (i + 1 < commandStrings.Size())
+      {
+        val = commandStrings[i + 1];
+        commandStrings.Delete(i + 1);
+      }
+      else
+      {
+        i++;
+        continue;
+      }
+      bool ok = false;
+      if (sw == 0) ok = (_wcsicmp(val.Ptr(), L"retail") == 0 || _wcsicmp(val.Ptr(), L"dev") == 0);
+      else if (sw == 1) ok = (_wcsicmp(val.Ptr(), L"ctr") == 0 || _wcsicmp(val.Ptr(), L"snake") == 0);
+      else ok = (wcscmp(val.Ptr(), L"4") == 0 || wcscmp(val.Ptr(), L"5") == 0);
+      if (ok)
+      {
+        if (sw == 0) SetEnvironmentVariableW(L"Z7CTR_UNIT", val.Ptr());
+        else if (sw == 1) SetEnvironmentVariableW(L"Z7CTR_TYPE", val.Ptr());
+        else SetEnvironmentVariableW(L"Z7CTR_SLOT", val.Ptr());
+        commandStrings.Delete(i);
+        continue;
+      }
+      // invalid value: leave the tokens in place so the standard parser reports it
+    }
+    i++;
+  }
+  #endif
+
   if (commandStrings.Size() == 0)
   {
     ShowCopyrightAndHelp(g_StdStream, true);

@@ -1098,9 +1098,9 @@ Z7_DIAGNOSTIC_IGNORE_CAST_FUNCTION
 
       // 7-Zip CTR: publish the absolute source path via a process env var so the
       // dll NAND handler can look up per-device key material next to nand.bin.
-      wchar_t wName[2048], wFull[2048];
-      if (MultiByteToWideChar(CP_UTF8, 0, archiveName, -1, wName, 2048) > 0 &&
-          GetFullPathNameW(wName, 2048, wFull, NULL) > 0)
+      // FString is a wide UString on Windows; pass it straight to GetFullPathNameW.
+      wchar_t wFull[2048];
+      if (GetFullPathNameW(archiveName.Ptr(), 2048, wFull, NULL) > 0)
         SetEnvironmentVariableW(L"Z7CTR_SRC_PATH", wFull);
 
       const UInt64 scanSize = 1 << 23;
