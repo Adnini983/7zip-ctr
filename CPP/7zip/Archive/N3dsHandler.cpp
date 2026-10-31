@@ -293,6 +293,7 @@ struct CKeyEntry
 static UInt64 DirSig64(const UString &dir, const wchar_t *pattern);
 static bool KeystoneCacheSigPresent(Byte type, UInt64 sig);
 static void KeystoneCacheAppendKey(const UString &name, const Byte data[16], bool isDev, UInt64 sig);
+static bool LoadFirmModulusCached(bool dev, Byte N[256]);
 
 class C3dsKeys
 {
@@ -856,11 +857,13 @@ static void Hex16FromText(const UString &hex, Byte out[16])
 //   2) RetailFirmPubKeyFile= / DevFirmPubKeyFile= (256B big-endian binary, or hex text)
 //   3) FirmPubKeyDir= folder (default keystone\pubkey). This folder is managed
 //      by its OWN independent .ini file "pubkey.ini" ([FirmPubKey] section):
-//      RetailFirmPubKeyFile= / DevFirmPubKeyFile= point at the standalone 256B
-//      big-endian modulus files (retail_firm_pubkey.bin / dev_firm_pubkey.bin,
-//      e=65537). boot9.bin must NOT be placed in this folder.
-//      If pubkey.ini is missing/corrupt or the referenced files cannot be read,
-//      fall through to the ctrdevice scan below.
+//        RetailFirmPubKeyHex= / DevFirmPubKeyHex=  (512-hex plaintext modulus)
+//        RetailFirmPubKeyFile= / DevFirmPubKeyFile= (standalone 256B big-endian
+//            modulus files: retail_firm_pubkey.bin / dev_firm_pubkey.bin, e=65537)
+//      Hex keys take precedence over the file keys inside pubkey.ini; boot9.bin
+//      must NOT be placed in this folder.
+//      If pubkey.ini is missing/corrupt or neither the hex nor the referenced
+//      files can be used, fall through to the ctrdevice scan below.
 //   4) FirmBoot9Path= explicit boot9.bin.
 //   5) ctrdevice scan: each per-console sub-folder under DeviceDataDir
 //      (default keystone\ctrdevice) is examined for its "ctrindex.ini"; the
@@ -870,6 +873,9 @@ static void Hex16FromText(const UString &hex, Byte out[16])
 //      If NO ctrindex.ini with a usable boot9= is found, no public key is
 //      loaded and FIRM signature verification is SKIPPED entirely (the archive
 //      reports "Not verified (no public key loaded)").
+// The successful load is persisted into the unified keystone.cache (type=3
+// record) so later opens skip the file/hex/ctrdevice scan; "Rebuild cache" in
+// the options page drops it together with the other cached records.
 static unsigned HexStrToBytesN(const UString &hex, Byte *out, unsigned max)
 {
   memset(out, 0, max);
@@ -950,6 +956,14 @@ static bool LoadFirmModulus(bool dev, Byte N[256])
   UString kd = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"FirmPubKeyDir"), L"keystone\\pubkey");
   {
     UString ini = kd + UString(L"\\pubkey.ini");
+    // pubkey.ini may carry the modulus directly as 512-hex plaintext; that
+    // takes precedence over the named 256B files inside the same ini.
+    wchar_t hexBuf[2048] = { 0 };
+    GetPrivateProfileStringW(L"FirmPubKey",
+        dev ? L"DevFirmPubKeyHex" : L"RetailFirmPubKeyHex",
+        L"", hexBuf, 2048, ini.Ptr());
+    if (HexStrToBytesN(UString(hexBuf), N, 256) == 256)
+      return true;
     wchar_t buf[MAX_PATH] = { 0 };
     GetPrivateProfileStringW(L"FirmPubKey",
         dev ? L"DevFirmPubKeyFile" : L"RetailFirmPubKeyFile",
@@ -1027,7 +1041,7 @@ struct RSA_BLOB { ULONG Magic; ULONG BitLength; ULONG cbPublicExp; ULONG cbModul
 static int FirmRsaCheck(const Byte header[256], const Byte sig[256], bool dev)
 {
   Byte N[256];
-  if (!LoadFirmModulus(dev, N))
+  if (!LoadFirmModulusCached(dev, N))
     return 0;
 
   HMODULE bc = LoadLibraryW(L"bcrypt.dll");
@@ -1389,6 +1403,160 @@ static bool KeystoneCacheLoadDevice(const UString &name, UInt64 curSig, CDeviceN
   }
   free(buf);
   return ok;
+}
+
+// ---- FIRM public-key records (type=3) in the unified keystone cache ----
+// data = IsDev u8 + N[256] (257B, XOR-obfuscated); name = "firm_pub_retail" /
+// "firm_pub_dev". sig covers every source that can feed LoadFirmModulus, so a
+// changed pubkey.ini / hex / file / ctrdevice boot9 invalidates the record.
+
+// FNV-1a over the per-console sub-folders of the ctrdevice root: for each
+// sub-folder hash ctrindex.ini and boot9.bin (contents change => sig changes).
+static UInt64 DevRootSig64(const UString &root)
+{
+  UInt64 h = 1469598103934665603ULL;
+  WIN32_FIND_DATAW fd;
+  HANDLE hf = FindFirstFileW((root + UString(L"\\*")).Ptr(), &fd);
+  if (hf != INVALID_HANDLE_VALUE)
+  {
+    do
+    {
+      if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.')
+      {
+        UString sub = root + UString(L"\\") + (const wchar_t *)fd.cFileName;
+        h ^= DirSig64(sub, L"ctrindex.ini");
+        h *= 1099511628211ULL;
+        h ^= DirSig64(sub, L"boot9.bin");
+        h *= 1099511628211ULL;
+      }
+    } while (FindNextFileW(hf, &fd));
+    FindClose(hf);
+  }
+  return h;
+}
+
+// Combined signature of every FIRM-modulus source: keystone.ini (hex/file/dir/
+// boot9-path keys), the FirmPubKeyDir folder (pubkey.ini + 256B files) and the
+// ctrdevice root (per-console ctrindex.ini + boot9.bin).
+static UInt64 FirmPubKeySourceSig(const UString &dll)
+{
+  UInt64 s = DirSig64(dll, L"keystone.ini");
+  UString kd = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"FirmPubKeyDir"), L"keystone\\pubkey");
+  s ^= DirSig64(kd, L"*");
+  UString devRoot = ResolveKeystoneDir(dll, ReadKeystoneIni(dll, L"DeviceDataDir"), L"keystone\\ctrdevice");
+  s ^= DevRootSig64(devRoot);
+  return s;
+}
+
+// Append one FIRM public-key record (type=3).
+static void KeystoneCacheAppendPubKey(bool dev, const Byte N[256], UInt64 sig)
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return;
+  UString name = UString(dev ? L"firm_pub_dev" : L"firm_pub_retail");
+
+  Byte plain[257];
+  plain[0] = dev ? 1 : 0;
+  memcpy(plain + 1, N, 256);
+  Byte obf[257];
+  for (int i = 0; i < 257; i++)
+    obf[i] = plain[i] ^ ObfByte((UInt32)i);
+
+  HANDLE h = CreateFileW(path.Ptr(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h != INVALID_HANDLE_VALUE)
+  {
+    Byte hdr[14];
+    Byte *q = hdr;
+    *q++ = 3;                                  // type = FIRM public key
+    *q++ = (Byte)name.Len();
+    KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
+    KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
+    KS_PutU32(q, 257); q += 4;
+    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
+    ObfuscateName(name, obfName);
+    DWORD wr;
+    WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
+    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, obf, 257, &wr, NULL);
+    free(obfName);
+    CloseHandle(h);
+  }
+}
+
+// Load a FIRM public-key record (type=3) matching unit + source signature.
+static bool KeystoneCacheLoadPubKey(bool dev, UInt64 sig, Byte N[256])
+{
+  UString path = CacheFilePath();
+  if (path.IsEmpty())
+    return false;
+  UString name = UString(dev ? L"firm_pub_dev" : L"firm_pub_retail");
+  HANDLE h = CreateFileW(path.Ptr(), GENERIC_READ, FILE_SHARE_READ, NULL,
+      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD sz = GetFileSize(h, NULL);
+  Byte *buf = (Byte *)malloc(sz + 1);
+  DWORD rd = 0;
+  ReadFile(h, buf, sz, &rd, NULL);
+  CloseHandle(h);
+
+  bool ok = false;
+  UInt32 pos = 0;
+  while (pos + 14 <= sz)
+  {
+    Byte type = buf[pos];
+    Byte nameLen = buf[pos + 1];
+    UInt32 sigLo = KS_GetU32(buf + pos + 2);
+    UInt32 sigHi = KS_GetU32(buf + pos + 6);
+    UInt32 dataSize = KS_GetU32(buf + pos + 10);
+    UInt32 nameOff = pos + 14;
+    UInt32 dataOff = nameOff + (UInt32)nameLen * 2;
+    UInt32 next = dataOff + dataSize;
+    if (next > sz)
+      break;
+    if (type == 3 && (UInt32)name.Len() == nameLen &&
+        ((UInt64)sigLo | ((UInt64)sigHi << 32)) == sig)
+    {
+      Byte *decName = (Byte *)malloc((UInt32)nameLen * 2);
+      for (UInt32 i = 0; i < (UInt32)nameLen * 2; i++)
+        decName[i] = buf[nameOff + i] ^ ObfByte(i);
+      bool nm = memcmp(decName, name.Ptr(), (UInt32)nameLen * 2) == 0;
+      free(decName);
+      if (nm && dataSize >= 257)
+      {
+        const Byte *enc = buf + dataOff;
+        Byte plain[257];
+        for (UInt32 i = 0; i < 257; i++)
+          plain[i] = enc[i] ^ ObfByte(i);
+        if ((plain[0] == 1) == dev)
+        {
+          memcpy(N, plain + 1, 256);
+          ok = true;
+          break;
+        }
+      }
+    }
+    pos = next;
+  }
+  free(buf);
+  return ok;
+}
+
+// Top-level FIRM modulus loader with disk-cache: compute the combined source
+// signature, hit the type=3 cache record if unchanged, otherwise run the full
+// LoadFirmModulus chain and persist the result into the unified cache.
+static bool LoadFirmModulusCached(bool dev, Byte N[256])
+{
+  UString dll = GetDllDirectory();
+  UInt64 sig = FirmPubKeySourceSig(dll);
+  if (KeystoneCacheLoadPubKey(dev, sig, N))
+    return true;
+  if (!LoadFirmModulus(dev, N))
+    return false;
+  KeystoneCacheAppendPubKey(dev, N, sig);
+  return true;
 }
 
 // single-block AES-ECB encrypt (IV=0 CBC encode == ECB), mirrors AesCtr_Decode3ds
