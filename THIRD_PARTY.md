@@ -43,7 +43,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `gm9tools/DumpKeysCTR.gm9` | 本项目编写的 GodMode9 脚本（实机运行） |
+| `gm9tools/DumpKeysCTR.lua` | 本项目编写的 GodMode9 Lua 脚本（需 GM9 v2.2.0+，实机运行） |
 | `gm9tools/aeskeys2ctr.py` / `.bat` | 本项目编写：把 GodMode9 导出转成 `keystone/ctraes_*` 文本格式 |
 | `scripts/make_fixtures.ps1` | 本项目编写：CI 用的**合成**容器夹具（不含任何真实数据） |
 

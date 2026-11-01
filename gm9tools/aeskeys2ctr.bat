@@ -16,7 +16,7 @@ rem    keystone_private\         console-unique / OTP-derived (DO NOT publish)
 rem
 rem  --boot9 extracts the FIRM public keys from boot9.bin (0xB1E0 retail /
 rem  0xC4E0 devkit, 256 bytes each). When omitted, a boot9.bin sitting next to
-rem  the input (e.g. the priv\ folder written by DumpKeysCTR.gm9) is used.
+rem  the input (e.g. the keystone\ctrdevice folder written by DumpKeysCTR.lua) is used.
 rem  This BAT is functionally identical to aeskeys2ctr.py.
 rem ============================================================
 setlocal EnableExtensions

@@ -118,13 +118,12 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 
 实机导出与转换请用：
 
-- `gm9tools\DumpKeysCTR.lua` —— 在实机 GodMode9 里运行（HOME → Lua scripts…），
+- `gm9tools\DumpKeysCTR.lua` —— 在实机 GodMode9 里运行（HOME → Lua scripts…；
+  **需要 GodMode9 v2.2.0 / 2025-03-22 或更新**，该版本才加入 Lua），
   一次写出**最终可用**的 `keystone\` 结构（松散 `.key` 文件，与 `build\keystone\ctraes_*`
   同构；`aes_keys.txt` 只作为输入被转换掉）：AES 密钥（pub/private 已分好）、
   `keystone\pubkey\`（FIRM 公钥）、`keystone\ctrdevice\<SN>\`（boot9/OTP/CID/ctrindex.ini）
   和 `seeddb.bin`，不需要电脑端再转换。
-- `gm9tools\DumpKeysCTR.gm9` —— 旧版 GM9Script 版（备用）：只整理 aeskeydb.bin（K: 盘）
-  里的密钥到 `pub\` / `priv\`，FIRM 公钥与设备材料需要电脑端 `aeskeys2ctr --boot9` 补齐。
 - `gm9tools\aeskeys2ctr.bat`（无需 Python，用系统自带 PowerShell）
   或等价的 `gm9tools\aeskeys2ctr.py` —— 在电脑上把 GodMode9 的
   `aes_keys.txt` / `aeskeydb.bin` / 导出的 `slot0x*.bin`
@@ -174,8 +173,7 @@ DevFirmPubKeyFile=dev_firm_pubkey.bin
 > 该目录**不得**放 `boot9.bin`——只要 modulus 就够了。
 - 也可以自己生成这两个文件（无需手抄 hex）：
   - 实机：`gm9tools\DumpKeysCTR.lua` 会从 boot9 的 `0xB1E0` / `0xC4E0` 各取 256 字节，
-    在 `sd:/gm9/out/7zctr-keys/keystone/pubkey/` 下写出两个 modulus + `pubkey.ini`
-    （旧版 `DumpKeysCTR.gm9` 写到同名结构，但实机上不可靠）；
+    在 `sd:/gm9/out/7zctr-keys/keystone/pubkey/` 下写出两个 modulus + `pubkey.ini`；
   - 电脑端：`gm9tools\aeskeys2ctr.py <input> --boot9 boot9.bin` 生成同样的三个文件。
 
 > 校验结果（type=3 记录）也会并入 `keystone\cache\keystone.cache`，点「重置缓存」可清空重算。
