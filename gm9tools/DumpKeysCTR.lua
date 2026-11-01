@@ -20,7 +20,7 @@
 --   keystone/ctrdevice/<SERIAL>_<unit>/otp_dec.mem
 --   keystone/ctrdevice/<SERIAL>_<unit>/nand_cid.mem
 --   keystone/ctrdevice/<SERIAL>_<unit>/ctrindex.ini
---   seeddb.bin                          (built with fs.key_dump)
+--   seeddb.bin                          (only when a complete one is available)
 --   README.txt
 --   dump.log
 --
@@ -30,12 +30,16 @@
 --   2. Copy 0:/gm9/out/7zctr-keys/keystone + seeddb.bin next to 7z.dll
 --      (merge with the existing keystone folder).
 --
--- Nothing has to be prepared on the SD card: the public AES keybase is embedded
--- below, the FIRM moduli come out of boot9.bin, and seeddb.bin is built by
--- GodMode9 itself (fs.key_dump). Everything the console provides is merged on
--- top; there is no separate "private" folder because the handler never reads
--- one -- console-unique keys go into the same ctraes_retail / ctraes_dev folder
--- as the rest.
+-- Nothing has to be prepared on the SD card for keys: the public AES keybase is
+-- embedded below and the FIRM moduli come out of boot9.bin. There is no separate
+-- "private" folder because the handler never reads one -- console-unique keys go
+-- into the same ctraes_retail / ctraes_dev folder as the rest.
+--
+-- seeddb.bin is the one item that cannot come from the console: a machine only
+-- knows the seeds of its own installed titles. The script only copies a complete
+-- database (0:/gm9/support/seeddb.bin, 0:/seeddb.bin or 0:/gm9/out/seeddb.bin)
+-- and otherwise leaves it out with an explanation -- the release already ships
+-- one next to 7z.dll.
 --
 -- Everything is ASCII on purpose: GodMode9's default font has no CJK glyphs.
 
@@ -598,11 +602,15 @@ end
 
 -- ------------------------------------------------------------ 5. seed database
 say("")
--- seeddb.bin is real data, not something this script can invent: the console can
--- build it (GodMode9 HOME -> More... -> Build seeddb, same call as fs.key_dump
--- below), or you can drop a known-good one into 0:/gm9/support/ where GodMode9
--- itself looks for it. What this script must do is use a COMPLETE one and never
--- keep reusing a stale, half-built file.
+-- Facts about seeddb.bin, checked against GodMode9's source and a real console:
+--   * BuildSeedInfo() only reads the seed system save of THIS console (plus the
+--     contents of an already existing 0:/gm9/out/seeddb.bin, which it merges).
+--   * A normal console therefore contributes 1 seed or so. A 1861-entry database
+--     is external data -- GodMode9's own README tells users to fetch one and put
+--     it in 0:/gm9/support/.
+--   * The release package already ships that complete file next to 7z.dll.
+-- So: only ever copy a COMPLETE database, and never run a build that would
+-- overwrite (and thereby destroy) an existing good file.
 do
   local function entry_count(path)
     local ok, st = pcall(fs.stat, path)
@@ -615,48 +623,42 @@ do
     return n
   end
 
+  local MIN_COMPLETE = 100
   local candidates = {
-    "0:/gm9/support/seeddb.bin",   -- the place GodMode9 itself reads it from
-    "0:/seeddb.bin",               -- handy copy on the card root
-    GM9OUT .. "/seeddb.bin",       -- what Build seeddb / fs.key_dump writes
+    "0:/gm9/support/seeddb.bin",   -- where GodMode9 itself reads it from
+    "0:/seeddb.bin",
+    GM9OUT .. "/seeddb.bin",
   }
 
-  local best, best_n = nil, 0
+  local best, best_n, all_n = nil, 0
+  local seen = {}
   for _, p in ipairs(candidates) do
     local n = entry_count(p)
+    if n > 0 then seen[#seen + 1] = string.format("%s=%d", p, n) end
     if n > best_n then best, best_n = p, n end
   end
 
-  if best_n < 16 then
-    -- nothing usable around: let GodMode9 build it (same code path as the menu)
-    pcall(fs.allow, GM9OUT, { ask_all = true })
-    local ok, err = pcall(fs.key_dump, "seeddb.bin", { overwrite = true })
-    if not ok then
-      say("seeddb.bin: build call failed (%s)", tostring(err))
-    end
-    local n = entry_count(GM9OUT .. "/seeddb.bin")
-    if n > best_n then best, best_n = GM9OUT .. "/seeddb.bin", n end
-  end
-
-  if best and best_n > 0 then
+  if best and best_n >= MIN_COMPLETE then
     local ok, err = pcall(fs.copy, best, OUT .. "/seeddb.bin",
       { overwrite = true, silent = true, no_cancel = true })
     if ok then
       stats.files = stats.files + 1
       say("seeddb.bin: %d entries (from %s)", best_n, best)
-      if best_n < 100 then
-        say("  WARNING: only %d entries -- that is a partial database.", best_n)
-        say("  Run GodMode9's HOME -> More... -> Build seeddb (writes")
-        say("  0:/gm9/out/seeddb.bin), then run this script again.")
-      end
     else
       say("seeddb.bin: WARNING copy failed (%s)", tostring(err))
     end
   else
-    say("seeddb.bin: none found and none could be built.")
-    say("  Run GodMode9's HOME -> More... -> Build seeddb first (it writes")
-    say("  0:/gm9/out/seeddb.bin), or put a full seeddb.bin into")
-    say("  0:/gm9/support/seeddb.bin, then run this script again.")
+    -- No complete database anywhere. Do NOT build: the console's own seed save
+    -- holds only its installed seeds, and building would overwrite a good file.
+    say("seeddb.bin: NOT included -- no complete database found.")
+    if #seen > 0 then
+      say("  partial databases on the card: %s", table.concat(seen, ", "))
+    end
+    say("  A complete seeddb.bin is needed for seed-encrypted RomFS; your")
+    say("  console can only contribute its own installed seeds.")
+    say("  The 7-Zip CTR release already ships one next to 7z.dll. To have it")
+    say("  here too (and to let GodMode9 decrypt seed games), copy it to")
+    say("  0:/gm9/support/seeddb.bin and run this script again.")
   end
 end
 
@@ -696,5 +698,5 @@ if stats.fails > 0 then
 end
 say("layout : keystone/ctraes_retail/*.key  keystone/ctraes_dev/*.key")
 say("         keystone/pubkey/*  keystone/ctrdevice/%s/*", DEV_NAME)
-say("copy keystone/ + seeddb.bin next to 7z.dll")
+say("copy keystone/ (+ seeddb.bin if present) next to 7z.dll")
 ui.ask("Press A to exit")
