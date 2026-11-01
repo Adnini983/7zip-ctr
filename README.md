@@ -210,7 +210,7 @@ Tools，无需改动即可编译出 `7z.dll` / `7z.exe` / `7zFM.exe` 等）。�
 
 ## 致谢
 
-- **代码与文档生成辅助**：部分代码、文档、图标设计和构建脚本由 AI 工具（豆包 / Doubao）辅助生成。
+- **代码与文档生成辅助**：部分代码、文档、图标设计和构建脚本由 AI 工具（豆包 / Doubao、DeepSeek）辅助生成。
 - **用户贡献**：功能需求、测试环境、实机验证以及项目方向由用户提供。
 - 感谢 [Igor Pavlov](https://www.7-zip.org/) 与 7-Zip 社区、[GodMode9 项目](https://github.com/d0k3/GodMode9)、
   [ctrtool](https://github.com/3DSGuy/Project_CTR)、[3DS-rom-tools](https://github.com/ihaveamac/3DS-rom-tools)、
