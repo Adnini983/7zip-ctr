@@ -66,13 +66,22 @@ local function mkdir(p)
   return ok
 end
 
+-- GodMode9's io.open(path, "wb") CANNOT create a file: its shim calls
+-- fs.truncate() first, and truncate fails when the file is missing (that is why
+-- the first hardware run only produced the fs.copy() files). fs.write_file uses
+-- FA_OPEN_ALWAYS, so it creates the file when needed.
 local function write_bytes(path, data)
-  local f, err = io.open(path, "wb")
-  if not f then error("cannot open " .. path .. ": " .. tostring(err)) end
-  local ok, werr = f:write(data)
-  f:close()
-  if not ok then error("cannot write " .. path .. ": " .. tostring(werr)) end
+  if fs.exists(path) then pcall(fs.remove, path) end
+  local n, err = fs.write_file(path, 0, data)
+  if type(n) ~= "number" then error("cannot write " .. path .. ": " .. tostring(err)) end
+  if n ~= #data then error(string.format("short write on %s (%d/%d)", path, n, #data)) end
   stats.files = stats.files + 1
+end
+
+local function read_all(path)
+  local ok, st = pcall(fs.stat, path)
+  if not ok or st.type ~= "file" then return nil end
+  return fs.read_file(path, 0, st.size)
 end
 
 local function read_bytes(path, off, size)
@@ -232,12 +241,13 @@ say("")
 say("AES keys:")
 
 -- 4a) preferred: GodMode9's own DumpKeys output
-local aes_txt = GM9OUT .. "/aes_keys.txt"
-if exists(aes_txt) then
-  local f = io.open(aes_txt, "rb")
-  if f then
-    local data = f:read("a")
-    f:close()
+local aes_txt = nil
+for _, cand in ipairs({ GM9OUT .. "/aes_keys.txt", "0:/aes_keys.txt", GM9OUT .. "/7zctr-keys/aes_keys.txt" }) do
+  if exists(cand) then aes_txt = cand; break end
+end
+if aes_txt then
+  local data = read_all(aes_txt)
+  if data then
     local n = 0
     for line in data:gmatch("[^\r\n]+") do
       local name, hex = line:match("^%s*([%w_]+)%s*=%s*(%x+)")
@@ -270,7 +280,10 @@ else
     end
     say("  source: [K:] AESKEYDB, %d slots -> converted to loose .key files", n)
   else
-    say("  no [K:] drive: run GodMode9's Scripts -> DumpKeys first")
+    say("  no key source found.")
+    say("  Run GodMode9's built-in  Scripts -> DumpKeys  first: it writes")
+    say("  0:/gm9/out/aes_keys.txt, which this script converts into .key files.")
+    say("  (Or put aeskeydb.bin in the SD root to use the [K:] AESKEYDB drive.)")
   end
 end
 
