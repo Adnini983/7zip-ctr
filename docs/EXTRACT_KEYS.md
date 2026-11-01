@@ -36,14 +36,14 @@
 GodMode9 内置 **Lua 5.4**，`gm9tools\DumpKeysCTR.lua` 用它把「AES 密钥 + FIRM 公钥 +
 NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构：
 
-1. AES 密钥来源（脚本按顺序自动找，找到就用）：
-   - `0:/gm9/out/aes_keys.txt`（其它工具/整合包导出的文本库）；
-   - **`0:/aeskeydb.bin`**（GodMode9 仓库自带 `data/aeskeydb.bin`，直接放 SD 根目录即可）；
-   - `[K:] AESKEYDB` 盘（挂载了 aeskeydb.bin 时）。
+1. **不需要准备任何密钥文件。** 公共 AES 密钥（slot0x03/0x18/0x1B/0x25/0x2C..0x3F 与
+   common 系列）在所有机器上都相同，已经由 `gm9tools/embed_keys.py` 内嵌进
+   `DumpKeysCTR.lua`（208 条：114 零售 + 94 开发）。脚本单独一个文件就能产出完整包。
+   如果 SD 上恰好有别的密钥库，脚本会**额外合并**（不会覆盖内置值）：
+   `0:/gm9/out/aes_keys.txt` → `0:/aeskeydb.bin` → `[K:] AESKEYDB`。
+   > 刷新内置密钥：`python gm9tools\embed_keys.py <keystone 目录>`（目录里要有
+   > `ctraes_retail\` 和/或 `ctraes_dev\`）。
 
-   > 注：GodMode9 自己**没有** "DumpKeys" 这个内置脚本，`aes_keys.txt` 是别的工具产的。
-   > 而且公共 AES 密钥在所有机器上都一样 —— 也可以直接用发布包里现成的
-   > `keystone\ctraes_retail\`，脚本会跳过这一步不影响其它产物。
 2. 把 `gm9tools\DumpKeysCTR.lua` 放进 `sd:/gm9/luascripts/`，
    用 **HOME → Lua scripts...** 运行（或在文件浏览器里选中它 → `Execute Lua script`）。
 3. 结果在 **`sd:/gm9/out/7zctr-keys/`**（就是 `GM9OUT`，GodMode9 自己的输出目录）：
