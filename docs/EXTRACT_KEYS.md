@@ -64,7 +64,6 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
       pubkey.ini             上面两个文件的配置
     ctrdevice/<序列号>_<单位>/
       boot9.bin otp.mem otp_dec.mem nand_cid.mem ctrindex.ini
-  keystone_private/*.key      console-unique 的安全副本（**勿上传**）
   seeddb.bin
   README.txt
   dump.log                    本次运行的全部日志
@@ -73,13 +72,15 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 说明：
 - 设备目录名带单位后缀，零售机 `<序列号>_retail`、开发机 `<序列号>_dev`（上面的例子里是
   `<serial>_retail`）。
-- AES 密钥全部写进**本机单位**对应的目录（零售→`ctraes_retail`，开发→`ctraes_dev`），
-  因为 handler 只按 profile 的单位找 keys；console-unique 的那部分另在
-  `keystone_private/` 留一份副本，方便你区分"哪些不能传"。
-- `seeddb.bin` 取不到时（例如 dev 单元上 GodMode9 无法构建）**只记录并跳过**，
-  不影响 NAND/CIA；`dump.log` 里会写明原因。
+- AES 密钥（含 console-unique）**全部**写进本机单位对应的目录
+  （零售→`ctraes_retail`，开发→`ctraes_dev`）。handler 只按 profile 的单位读这一处，
+  所以不存在也不需要单独的 "private" 目录。
+- `seeddb.bin` 由 GodMode9 自己构建（Lua 的 `fs.key_dump("seeddb.bin")`，扫描已安装
+  的 title 生成），生成后复制进包；零售机可正常生成。开发机上 GodMode9 目前构建不出，
+  脚本会记录 `NOT built (...) -- skipped` 并继续，**不会中断**——缺它只影响 seed 加密的
+  RomFS，不影响 NAND/CIA。
 
-4. 把 `keystone\`、`keystone_private\`、`seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
+4. 把 `keystone\` 与 `seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
    **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进
    `ctrindex.ini`。
 
