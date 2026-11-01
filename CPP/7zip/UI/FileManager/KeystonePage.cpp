@@ -32,8 +32,19 @@ CKeystonePage::CKeystonePage() :
     m_DefaultDevice(),
     m_DefaultFirm(),
     _needSave(false),
-    _initMode(true)
+    _initMode(true),
+    _hFolderIcon(NULL)
 {
+}
+
+CKeystonePage::~CKeystonePage()
+{
+  // The buttons only borrow this icon; it is ours to free once the dialog is gone.
+  if (_hFolderIcon)
+  {
+    DestroyIcon(_hFolderIcon);
+    _hFolderIcon = NULL;
+  }
 }
 
 UString CKeystonePage::GetExeDir() const
@@ -69,40 +80,48 @@ void CKeystonePage::ModifiedEvent()
   }
 }
 
-// The folder-icon decoration below is disabled: it caused a crash in the
-// options dialog (heap corruption 0xc0000374 / access violation 0xc0000005
-// in ntdll). Kept out permanently; only the "open folder" button action is used.
-#if 0
-// Yellow folder icon: prefer the one shipped inside explorer.exe (icon index 0),
-// fall back to the system folder icon resolved from a real directory path.
-static HICON GetFolderIconSmall(const UString &dirPath)
+// Folder icon for the four "browse" buttons. The previous version attached the
+// icon through ExtractIconExW() and never owned the handle, which is what made
+// the options dialog crash (heap corruption 0xc0000374 in ntdll). This version
+// asks the shell for a private copy (SHGFI_USEFILEATTRIBUTES does not touch the
+// disk) and keeps ownership here, so it is destroyed exactly once, in the page
+// destructor, after the buttons are gone.
+static HICON LoadFolderIconSmall()
 {
-  HICON hSmall = NULL;
-  UINT n = ExtractIconExW(L"explorer.exe", 0, NULL, &hSmall, 1);
-  if (n != 0 && hSmall)
-    return hSmall;
-
   SHFILEINFOW sfi;
   sfi.hIcon = NULL;
-  SHGetFileInfoW(dirPath.IsEmpty() ? L"C:\\" : dirPath.Ptr(), 0, &sfi, sizeof(sfi),
-      SHGFI_ICON | SHGFI_SMALLICON);
-  return sfi.hIcon;
+  if (SHGetFileInfoW(L"folder", FILE_ATTRIBUTE_DIRECTORY, &sfi, sizeof(sfi),
+        SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES) && sfi.hIcon)
+    return sfi.hIcon;
+
+  HICON hSmall = NULL;
+  if (ExtractIconExW(L"explorer.exe", 0, NULL, &hSmall, 1) != 0 && hSmall)
+    return hSmall;
+  return NULL;
 }
 
-static void SetFolderIcon(HWND dlg, int controlID, const UString &dirPath)
+void CKeystonePage::ApplyFolderIcons()
 {
-  HICON h = GetFolderIconSmall(dirPath);
-  if (!h)
+  if (!_hFolderIcon)
+    _hFolderIcon = LoadFolderIconSmall();
+  if (!_hFolderIcon)
     return;
-  HWND b = GetDlgItem(dlg, controlID);
-  if (!b)
-    return;
-  // give the button an icon style and attach the folder icon
-  LONG_PTR style = GetWindowLongPtrW(b, GWL_STYLE);
-  SetWindowLongPtrW(b, GWL_STYLE, style | BS_ICON);
-  SendMessageW(b, BM_SETICON, (WPARAM)IMAGE_ICON, (LPARAM)h);
+
+  const int ids[] = { IDB_KEY_RETAIL_BROWSE, IDB_KEY_DEV_BROWSE,
+                      IDB_KEY_DEVICE_BROWSE, IDB_KEY_FIRM_BROWSE };
+  for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++)
+  {
+    HWND b = GetDlgItem(*this, ids[i]);
+    if (!b)
+      continue;
+    LONG_PTR style = GetWindowLongPtrW(b, GWL_STYLE);
+    SetWindowLongPtrW(b, GWL_STYLE, style | BS_ICON);
+    // a style change only takes effect after a frame refresh
+    SetWindowPos(b, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    SendMessageW(b, BM_SETICON, (WPARAM)IMAGE_ICON, (LPARAM)_hFolderIcon);
+    ::InvalidateRect(b, NULL, TRUE);
+  }
 }
-#endif
 
 void CKeystonePage::BrowsePath(NWindows::NControl::CDialogChildControl &edit, const UString &title)
 {
@@ -170,6 +189,7 @@ bool CKeystonePage::OnInit()
   m_FirmPath.SetText(fp.IsEmpty() ? m_DefaultFirm : fp);
 
   _initMode = false;
+  ApplyFolderIcons();
   return CPropertyPage::OnInit();
 }
 
