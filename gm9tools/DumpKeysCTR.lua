@@ -15,26 +15,32 @@
 --   keystone/ctrdevice/<SERIAL>/boot9.bin
 --   keystone/ctrdevice/<SERIAL>/otp.mem
 --   keystone/ctrdevice/<SERIAL>/otp_dec.mem
---   keystone/ctrdevice/<SERIAL>/nand_cid.mem
---   keystone/ctrdevice/<SERIAL>/ctrindex.ini
---   keystone_private/*.key              console-unique keys (NEVER publish)
---   seeddb.bin                          (when the SysNAND has one)
+--   keystone/ctrdevice/<SERIAL>_<unit>/boot9.bin
+--   keystone/ctrdevice/<SERIAL>_<unit>/otp.mem
+--   keystone/ctrdevice/<SERIAL>_<unit>/otp_dec.mem
+--   keystone/ctrdevice/<SERIAL>_<unit>/nand_cid.mem
+--   keystone/ctrdevice/<SERIAL>_<unit>/ctrindex.ini
+--   seeddb.bin                          (built with fs.key_dump)
 --   README.txt
+--   dump.log
 --
 -- HOW TO RUN
---   1. GodMode9 -> Scripts -> DumpKeys   (built-in; writes 0:/gm9/out/aes_keys.txt)
---      ... if you skip this, the [K:] AESKEYDB drive (aeskeydb.bin in the SD
---      root) is used as the AES key source instead.
---   2. Put this file in 0:/gm9/luascripts/ and use HOME -> "Lua scripts..."
---      (or select the file in the browser -> "Execute Lua script").
---   3. Copy 0:/gm9/out/7zctr-keys/keystone + keystone_private + seeddb.bin
---      next to 7z.dll (merge with the existing keystone folder).
+--   1. Put this file in 0:/gm9/luascripts/ and use HOME -> "Lua scripts..."
+--      (or select it in the browser -> "Execute Lua script").
+--   2. Copy 0:/gm9/out/7zctr-keys/keystone + seeddb.bin next to 7z.dll
+--      (merge with the existing keystone folder).
+--
+-- Nothing has to be prepared on the SD card: the public AES keybase is embedded
+-- below, the FIRM moduli come out of boot9.bin, and seeddb.bin is built by
+-- GodMode9 itself (fs.key_dump). Everything the console provides is merged on
+-- top; there is no separate "private" folder because the handler never reads
+-- one -- console-unique keys go into the same ctraes_retail / ctraes_dev folder
+-- as the rest.
 --
 -- Everything is ASCII on purpose: GodMode9's default font has no CJK glyphs.
 
 local OUT = GM9OUT .. "/7zctr-keys"
 local KS = OUT .. "/keystone"
-local PVT = OUT .. "/keystone_private"
 local SERIAL = (sys.serial and sys.serial ~= "" and sys.serial) or "UNKNOWN"
 local UNIT = IS_DEVKIT and "dev" or "retail"
 local MODEL = (CONSOLE_TYPE == "N3DS") and "snake" or "ctr"
@@ -385,12 +391,6 @@ local function emit_key(name, hex, unit)
   local body = out_name .. "=" .. hex .. "\r\n"
   local ok, err = pcall(write_bytes, dir .. "/" .. out_name .. ".key", body)
   if ok then stats.keys = stats.keys + 1 else fail(tostring(err)) end
-  -- console-unique keys stay usable (the handler needs them for some titles)
-  -- but are ALSO mirrored into keystone_private/ so it is obvious what must not
-  -- be uploaded anywhere.
-  if not is_publishable(name) then
-    pcall(write_bytes, PVT .. "/" .. out_name .. ".key", body)
-  end
 end
 
 -- ---------------------------------------------------------------- 1. folders
@@ -407,7 +407,6 @@ end
 
 mkdir(OUT)
 mkdir(KS)
-mkdir(PVT)
 mkdir(KS .. "/ctraes_retail")
 mkdir(KS .. "/ctraes_dev")
 mkdir(KS .. "/pubkey")
@@ -599,25 +598,39 @@ end
 
 -- ------------------------------------------------------------ 5. seed database
 say("")
+-- seeddb.bin is NOT a file sitting on the NAND: it has to be built by scanning
+-- the installed titles. GodMode9 exposes exactly that via fs.key_dump(), which
+-- writes 0:/gm9/out/seeddb.bin. Copying S:/ro/sys/seeddb.bin (what this script
+-- used to do) can never work.
 do
-  local got = false
-  for _, p in ipairs({ "S:/ro/sys/seeddb.bin", "1:/ro/sys/seeddb.bin" }) do
-    if exists(p) then
-      local ok, err = pcall(fs.copy, p, OUT .. "/seeddb.bin", { overwrite = true, silent = true, no_cancel = true })
-      if ok then
-        stats.files = stats.files + 1
-        say("seeddb.bin: copied from %s", p)
-        got = true
-        break
-      end
-      say("seeddb.bin: WARNING copy from %s failed (%s) -- skipped", p, tostring(err))
+  local seed_src = GM9OUT .. "/seeddb.bin"
+  local built = false
+  if exists(seed_src) then
+    built = true
+    say("seeddb.bin: reusing %s", seed_src)
+  else
+    pcall(fs.allow, GM9OUT, { ask_all = true })
+    local ok, err = pcall(fs.key_dump, "seeddb.bin", { overwrite = true })
+    if ok and exists(seed_src) then
+      built = true
+      say("seeddb.bin: built from the installed titles")
+    else
+      -- Known limitation: GodMode9 cannot always build seeddb.bin on dev
+      -- units. A missing seeddb only affects seed-encrypted RomFS, never
+      -- NAND/CIA reading, so this is a soft skip and never aborts the run.
+      say("seeddb.bin: NOT built (%s) -- skipped", tostring(err))
+      say("  (raw title seeds are unaffected; only seed-encrypted RomFS needs it)")
     end
   end
-  if not got then
-    -- Known limitation: GodMode9 cannot always build seeddb.bin on dev units.
-    -- Missing seeddb only affects seed-encrypted RomFS, never NAND/CIA reading,
-    -- so this is a soft skip, not a failure.
-    say("seeddb.bin: not available on this unit -- skipped")
+  if built then
+    local ok, err = pcall(fs.copy, seed_src, OUT .. "/seeddb.bin",
+      { overwrite = true, silent = true, no_cancel = true })
+    if ok then
+      stats.files = stats.files + 1
+      say("seeddb.bin: copied into the package")
+    else
+      say("seeddb.bin: WARNING copy failed (%s) -- skipped", tostring(err))
+    end
   end
 end
 
@@ -629,8 +642,7 @@ pcall(write_bytes, OUT .. "/README.txt",
   "  keystone\\ctraes_retail\\   retail AES keys\r\n" ..
   "  keystone\\ctraes_dev\\      devkit AES keys\r\n" ..
   "  keystone\\pubkey\\          FIRM RSA-2048 public keys + pubkey.ini\r\n" ..
-  "  keystone\\ctrdevice\\" .. SERIAL .. "\\  boot9 / OTP / NAND CID device profile\r\n" ..
-  "  keystone_private\\         console-unique keys -- DO NOT upload anywhere\r\n" ..
+  "  keystone\\ctrdevice\\" .. DEV_NAME .. "\\  boot9 / OTP / NAND CID device profile\r\n" ..
   "  seeddb.bin                 goes next to 7z.dll\r\n\r\n" ..
   "Then open a .firm to check 'FIRM Signature = Valid', and open your nand.bin.\r\n")
 
@@ -658,5 +670,5 @@ if stats.fails > 0 then
 end
 say("layout : keystone/ctraes_retail/*.key  keystone/ctraes_dev/*.key")
 say("         keystone/pubkey/*  keystone/ctrdevice/%s/*", DEV_NAME)
-say("copy keystone/ + keystone_private/ + seeddb.bin next to 7z.dll")
+say("copy keystone/ + seeddb.bin next to 7z.dll")
 ui.ask("Press A to exit")
