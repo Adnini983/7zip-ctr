@@ -120,6 +120,19 @@ local function unit_of(name)
   return "ret"
 end
 
+-- File names are normalised to the same shape the shipped folders use
+-- (slot0x2CKeyX.key, common0N.key), even though the handler lowercases everything
+-- internally. This keeps the output visually identical to build\keystone\*.
+local function canonical(name)
+  local slot, kind = name:match("^slot0x(%x%x)key([xyn])$")
+  if slot then
+    return string.format("slot0x%02XKey%s", tonumber(slot, 16), kind:upper())
+  end
+  local idx, n = name:match("^common(%d)(n?)$")
+  if idx then return "common" .. idx .. ((n == "n") and "N" or "") end
+  return name
+end
+
 local function emit_key(name, hex, unit)
   name = name:lower()
   hex = hex:gsub("[^0-9a-fA-F]", "")
@@ -133,7 +146,8 @@ local function emit_key(name, hex, unit)
     dir = PVT
     stats.priv = stats.priv + 1
   end
-  local ok, err = pcall(write_bytes, dir .. "/" .. name .. ".key", name .. "=" .. hex .. "\r\n")
+  local out_name = canonical(name)
+  local ok, err = pcall(write_bytes, dir .. "/" .. out_name .. ".key", out_name .. "=" .. hex .. "\r\n")
   if ok then stats.keys = stats.keys + 1 else fail(tostring(err)) end
 end
 
@@ -232,7 +246,7 @@ if exists(aes_txt) then
         n = n + 1
       end
     end
-    say("  source: aes_keys.txt (%d lines)", n)
+    say("  source: GodMode9 DumpKeys output, %d keys -> converted to loose .key files", n)
   else
     say("  aes_keys.txt exists but cannot be read")
   end
@@ -254,7 +268,7 @@ else
         end
       end
     end
-    say("  source: [K:] (%d slot files)", n)
+    say("  source: [K:] AESKEYDB, %d slots -> converted to loose .key files", n)
   else
     say("  no [K:] drive: run GodMode9's Scripts -> DumpKeys first")
   end
@@ -286,10 +300,12 @@ pcall(write_bytes, OUT .. "/README.txt",
 say("")
 say("========== done ==========")
 say("output : %s", OUT)
-say("keys   : %d written (%d console-unique)", stats.keys, stats.priv)
+say("keys   : %d loose .key files (%d console-unique)", stats.keys, stats.priv)
 say("files  : %d", stats.files)
 if stats.fails > 0 then
   say("failures: %d (see [FAIL] lines above)", stats.fails)
 end
+say("layout : keystone/ctraes_retail/*.key  keystone/ctraes_dev/*.key")
+say("         keystone/pubkey/*  keystone/ctrdevice/%s/*", SERIAL)
 say("copy keystone/ + keystone_private/ + seeddb.bin next to 7z.dll")
 ui.ask("Press A to exit")
