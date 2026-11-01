@@ -41,8 +41,14 @@
 3. GodMode9 启动后自动把 aeskeydb.bin 挂载为 **[K:] AESKEYDB** 盘。
 4. Scripts → 运行 `DumpKeysCTR.gm9`，结果在
    `sd:/gm9out/7zctr-keys/`：
-   - `pub\`  —— 可上传 GitHub
-   - `priv\` —— 机器特有（OTP / movable.sed 派生），**勿上传**
+   - `pub\`  —— 可上传 GitHub（AES 公共密钥）
+   - `priv\` —— 机器特有，**勿上传**：`movable.sed`、`seeddb.bin`，以及从
+     `[M:] MEMORY VIRTUAL` 直接导出的 `boot9.bin` / `otp.mem` / `otp_dec.mem` /
+     `nand_cid.mem`（NAND 设备档案所需的四件套）
+   - `pubkey\` —— **FIRM 公钥**（公开）：`retail_firm_pubkey.bin`、
+     `dev_firm_pubkey.bin`、`pubkey.ini`。脚本直接从 boot9 的 `0xB1E0`（零售）/
+     `0xC4E0`（开发）各取 256 字节大端 modulus 生成，整个目录可原样放进
+     `7z.dll` 同目录的 `keystone\pubkey\`。
 
 ## 电脑端转换：`aeskeys2ctr`
 
@@ -54,6 +60,10 @@
 - `gm9tools\aeskeys2ctr.py` —— Python 版，逻辑与 BAT 完全一致。
 
 输入可以是：`aes_keys.txt` / `aeskeydb.bin` / 一目录的 `slot0x*.bin`。
+
+若手边有 `boot9.bin`（`DumpKeysCTR.gm9` 会把它放进 `priv\`），加上
+`--boot9 <boot9.bin>` 即可同时生成 `keystone\pubkey\` 的三个文件（不带参数时
+也会自动在输入目录里找 `boot9.bin`）。这组是**公开公钥**，可随源码/发布包分发。
 
 ```bat
 rem --- BAT 版（无需 Python）---
@@ -73,7 +83,8 @@ python gm9tools\aeskeys2ctr.py <devkit_aes_keys.txt> --out <输出目录> --devk
 python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 ```
 
-两个工具参数、分类规则、输出布局完全相同，可互换。
+两个工具的 AES 密钥参数、分类规则、输出布局完全相同，可互换；
+差异只有一处：`--boot9`（生成 `keystone\pubkey\` 的 FIRM 公钥）只在 Python 版提供。
 
 输出：
 

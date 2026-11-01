@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+r"""
 aeskeys2ctr.py -- Convert 3DS AES keys into 7-Zip CTR "keystone" folders.
 
 The N3dsHandler in 7-Zip CTR does NOT hardcode any key. It loads text files
@@ -28,7 +28,7 @@ be conservative. Pass --all-pub if you verified your values match the public
 ones and want them in keystone\ctraes_retail\ too.
 
 Usage:
-    python aeskeys2ctr.py <input> [--out <dir>] [--all-pub]
+    python aeskeys2ctr.py <input> [--out <dir>] [--all-pub] [--boot9 <boot9.bin>]
 
     <input> may be:
       - a path to aes_keys.txt      (GodMode9 DumpKeys / Citra format)
@@ -38,7 +38,13 @@ Usage:
 Output layout (under <out>, default "keystone_out"):
     keystone\ctraes_retail\   retail publishable  -> copy next to 7z.dll
     keystone\ctraes_dev\       devkit publishable  -> copy next to 7z.dll
+    keystone\pubkey\           FIRM RSA-2048 moduli + pubkey.ini (public keys)
     keystone_private\         console-unique / OTP-derived (DO NOT publish)
+
+The FIRM public keys live in boot9.bin at 0xB1E0 (retail) and 0xC4E0 (devkit,
+256 bytes big-endian each). Pass --boot9 to extract them, or let the tool pick
+up a boot9.bin sitting next to the input (the GodMode9 script writes one into
+its priv/ folder). They are public keys: safe to publish, unlike the AES keys.
 """
 
 import os
@@ -140,6 +146,40 @@ def parse_raw_bin_dir(path):
     return keys
 
 
+FIRM_PUBKEY_OFF = {"retail": 0xB1E0, "dev": 0xC4E0}
+FIRM_PUBKEY_LEN = 256
+PUBKEY_INI = ("[FirmPubKey]\r\n"
+              "RetailFirmPubKeyFile=retail_firm_pubkey.bin\r\n"
+              "DevFirmPubKeyFile=dev_firm_pubkey.bin\r\n")
+
+
+def extract_firm_pubkeys(boot9_path, out):
+    """Write keystone/pubkey/{retail,dev}_firm_pubkey.bin + pubkey.ini."""
+    with open(boot9_path, "rb") as f:
+        blob = f.read()
+    if len(blob) < 0x10000:
+        print("boot9.bin is only %d bytes (expected 65536): %s" % (len(blob), boot9_path),
+              file=sys.stderr)
+        return 0
+    pubdir = os.path.join(out, "keystone", "pubkey")
+    os.makedirs(pubdir, exist_ok=True)
+    written = 0
+    for unit, off in FIRM_PUBKEY_OFF.items():
+        mod = blob[off:off + FIRM_PUBKEY_LEN]
+        if len(mod) != FIRM_PUBKEY_LEN or not any(mod) or mod.count(0xFF) == FIRM_PUBKEY_LEN:
+            print("warning: %s FIRM modulus at 0x%X looks empty (wrong dump?), skipped"
+                  % (unit, off), file=sys.stderr)
+            continue
+        with open(os.path.join(pubdir, "%s_firm_pubkey.bin" % unit), "wb") as f:
+            f.write(mod)
+        written += 1
+        print("  %s_firm_pubkey.bin  %s..." % (unit, mod[:16].hex()))
+    if written:
+        with open(os.path.join(pubdir, "pubkey.ini"), "w", encoding="ascii", newline="") as f:
+            f.write(PUBKEY_INI)
+    return written
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -148,6 +188,7 @@ def main():
     out = "keystone_out"
     all_pub = False
     devkit = False
+    boot9 = None
     i = 2
     while i < len(sys.argv):
         a = sys.argv[i]
@@ -157,8 +198,17 @@ def main():
             all_pub = True; i += 1
         elif a == "--devkit":
             devkit = True; i += 1
+        elif a == "--boot9" and i + 1 < len(sys.argv):
+            boot9 = sys.argv[i + 1]; i += 2
         else:
             i += 1
+
+    # a boot9.bin next to the input is used for the FIRM public keys
+    if not boot9:
+        probe = os.path.join(src if os.path.isdir(src) else os.path.dirname(src) or ".",
+                             "boot9.bin")
+        if os.path.isfile(probe):
+            boot9 = probe
 
     keys = []
     if os.path.isdir(src):
@@ -171,7 +221,7 @@ def main():
         print("Unrecognized input type", file=sys.stderr)
         return 1
 
-    if not keys:
+    if not keys and not boot9:
         print("No keys found in input.", file=sys.stderr)
         return 1
 
@@ -203,6 +253,15 @@ def main():
         n += write_key(os.path.join(out, "keystone", "ctraes_dev"), name, h)
     for name, h in priv.items():
         n += write_key(os.path.join(out, "keystone_private"), name, h)
+
+    pubkeys = 0
+    if boot9:
+        print("FIRM public keys from %s:" % boot9)
+        pubkeys = extract_firm_pubkeys(boot9, out)
+        if not pubkeys:
+            print("  (none written)", file=sys.stderr)
+        else:
+            print("  -> keystone\\pubkey\\  (%d files + pubkey.ini)" % pubkeys)
 
     print("Parsed %d keys -> %d written" % (len(keys), n))
     print("  retail publishable : %d  (-> keystone\\ctraes_retail\\)" % len(pub_r))

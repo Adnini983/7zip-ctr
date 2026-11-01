@@ -165,4 +165,9 @@ DevFirmPubKeyFile=dev_firm_pubkey.bin
 
 > Release 包内 `keystone\pubkey\` 已附带 `pubkey.ini` 与两份公开 modulus；
 > 该目录**不得**放 `boot9.bin`——只要 modulus 就够了。
+- 也可以自己生成这两个文件（无需手抄 hex）：
+  - 实机：`gm9tools\DumpKeysCTR.gm9` 会从 boot9 的 `0xB1E0` / `0xC4E0` 各取 256 字节，
+    在 `sd:/gm9out/7zctr-keys/pubkey/` 下写出两个 modulus + `pubkey.ini`；
+  - 电脑端：`gm9tools\aeskeys2ctr.py <input> --boot9 boot9.bin` 生成同样的三个文件。
+
 > 校验结果（type=3 记录）也会并入 `keystone\cache\keystone.cache`，点「重置缓存」可清空重算。
