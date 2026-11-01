@@ -2932,8 +2932,13 @@ HRESULT CHandler::ParseRomFS(UInt64 base, UInt64 limit, const UString &prefix,
           continue;   // entry escapes the Contents.cnt container
         // Per-title CIAs are collected in a dedicated "Contents/" subfolder of
         // the cnt's directory, instead of being flattened next to Contents.cnt.
+        // The payload lives inside the (possibly encrypted) RomFS, so it must
+        // inherit the same RomFS crypto context as the regular files -- without
+        // it the extracted CIA is the raw ciphertext and every byte differs.
         UString nm = _cntDir + UString(L"Contents/") + HexUInt64Padded(_cupTitles[i]) + UString(L".cia");
-        AddItem(nm, cOff, cSize, false);
+        AddItem(nm, cOff, cSize, false,
+            false, 0, NULL, false,
+            (inner && nk1) ? nk1 : NULL, ctr3, base, 0);
       }
     }
   }
