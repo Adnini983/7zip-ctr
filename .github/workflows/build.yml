@@ -87,6 +87,17 @@ jobs:
           out\7z.exe l fixtures\garbage.bin >nul 2>&1
           if not errorlevel 1 (echo ERROR: garbage file was accepted & exit /b 1)
 
+          rem --- synthetic .csu (CTR System Updater) -------------------------------
+          rem NCSD -> NCCH (fixed-key crypto) -> encrypted RomFS with CupList and
+          rem Contents.cnt. The per-title .cia items are synthesised while parsing
+          rem the RomFS, so they must inherit its crypto context: without that the
+          rem extraction returns raw ciphertext and every byte differs.
+          out\7z.exe x fixtures\update.csu -ocsu_x -y >nul
+          if errorlevel 1 (echo ERROR: update.csu did not extract & exit /b 1)
+          if not exist "csu_x\Partition_0\Contents\000400000ff40002.cia" (echo ERROR: .csu CIA item missing & exit /b 1)
+          if not exist "csu_x\Partition_0\Contents.cnt" (echo ERROR: .csu Contents.cnt missing & exit /b 1)
+          fc /b "csu_x\Partition_0\Contents\000400000ff40002.cia" fixtures\csu.expected.cia >nul || (echo ERROR: .csu expanded CIA mismatch & exit /b 1)
+
           rem --- stock 7-Zip functionality must still work ------------------------
           del /q smoke_plain.7z 2>nul
           out\7z.exe a smoke_plain.7z fixtures\hello.expected fixtures\garbage.bin >nul
