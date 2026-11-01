@@ -42,6 +42,11 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
    用 **HOME → Lua scripts...** 运行（或在文件浏览器里选中它 → `Execute Lua script`）。
 3. 结果在 **`sd:/gm9/out/7zctr-keys/`**（就是 `GM9OUT`，GodMode9 自己的输出目录）：
 
+**输出是松散的 `.key` 文件**（每个密钥一个文本文件，`KeyName=32位HEX`），与
+`build\keystone\ctraes_retail\` / `ctraes_dev\` 完全同构 —— handler 只认这种结构，
+不读 `aes_keys.txt`。`aes_keys.txt` 只是 GodMode9 内置 DumpKeys 的中间产物：
+脚本读它、转成 `.key`，**不会**把它带进输出目录。
+
 ```
 7zctr-keys/
   keystone/

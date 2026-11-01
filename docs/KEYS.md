@@ -116,7 +116,8 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 实机导出与转换请用：
 
 - `gm9tools\DumpKeysCTR.lua` —— 在实机 GodMode9 里运行（HOME → Lua scripts…），
-  一次写出**最终可用**的 `keystone\` 结构：AES 密钥（pub/private 已分好）、
+  一次写出**最终可用**的 `keystone\` 结构（松散 `.key` 文件，与 `build\keystone\ctraes_*`
+  同构；`aes_keys.txt` 只作为输入被转换掉）：AES 密钥（pub/private 已分好）、
   `keystone\pubkey\`（FIRM 公钥）、`keystone\ctrdevice\<SN>\`（boot9/OTP/CID/ctrindex.ini）
   和 `seeddb.bin`，不需要电脑端再转换。
 - `gm9tools\DumpKeysCTR.gm9` —— 旧版 GM9Script 版（备用）：只整理 aeskeydb.bin（K: 盘）
