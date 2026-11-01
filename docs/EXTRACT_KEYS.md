@@ -31,28 +31,43 @@
    - `seeddb.bin`
 4. 把这两个文件拷回电脑。
 
-## 途径 B：`DumpKeysCTR.gm9`（分好可上传 / 不可上传）
+## 途径 B：`DumpKeysCTR.lua`（推荐：一次产出最终目录，无需电脑端转换）
 
-1. 准备 `aeskeydb.bin`：
-   - 可用 GodMode9 仓库自带的 `data/aeskeydb.bin`（只含可公开密钥）；
-   - 或你自己构建的更全密钥库。
-   - 把 `aeskeydb.bin` 放到 SD 卡根目录。
-2. 把 `gm9tools\DumpKeysCTR.gm9` 拷到 `sd:/gm9/scripts/`。
-3. GodMode9 启动后自动把 aeskeydb.bin 挂载为 **[K:] AESKEYDB** 盘。
-4. Scripts → 运行 `DumpKeysCTR.gm9`，结果在
-   `sd:/gm9out/7zctr-keys/`：
-   - `pub\`  —— 可上传 GitHub（AES 公共密钥）
-   - `priv\` —— 机器特有，**勿上传**：`movable.sed`、`seeddb.bin`，以及从
-     `[M:] MEMORY VIRTUAL` 直接导出的 `boot9.bin` / `otp.mem` / `otp_dec.mem` /
-     `nand_cid.mem`（NAND 设备档案所需的四件套）
-   - `pubkey\` —— **FIRM 公钥**（公开）：`retail_firm_pubkey.bin`、
-     `dev_firm_pubkey.bin`、`pubkey.ini`。脚本直接从 boot9 的 `0xB1E0`（零售）/
-     `0xC4E0`（开发）各取 256 字节大端 modulus 生成，整个目录可原样放进
-     `7z.dll` 同目录的 `keystone\pubkey\`。
+GodMode9 内置 **Lua 5.4**，`gm9tools\DumpKeysCTR.lua` 用它把「AES 密钥 + FIRM 公钥 +
+NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构：
 
-## 电脑端转换：`aeskeys2ctr`
+1. 先在 GodMode9 里跑 **Scripts → DumpKeys**（内置），生成 `0:/gm9/out/aes_keys.txt`
+   + `seeddb.bin`。（跳过这步也行，脚本会退回读 [K:] AESKEYDB 盘。）
+2. 把 `gm9tools\DumpKeysCTR.lua` 放进 `sd:/gm9/luascripts/`，
+   用 **HOME → Lua scripts...** 运行（或在文件浏览器里选中它 → `Execute Lua script`）。
+3. 结果在 **`sd:/gm9/out/7zctr-keys/`**（就是 `GM9OUT`，GodMode9 自己的输出目录）：
 
-把 GodMode9 的输出统一转成 handler 的 `keystone\ctraes_retail\` /
+```
+7zctr-keys/
+  keystone/
+    ctraes_retail/*.key      零售机 AES 密钥（可上传）
+    ctraes_dev/*.key         开发机 AES 密钥（可上传）
+    pubkey/
+      retail_firm_pubkey.bin FIRM 公钥（boot9 @0xB1E0，256B 大端）
+      dev_firm_pubkey.bin    FIRM 公钥（boot9 @0xC4E0）
+      pubkey.ini             上面两个文件的配置
+    ctrdevice/<序列号>/
+      boot9.bin otp.mem otp_dec.mem nand_cid.mem ctrindex.ini
+  keystone_private/*.key      console-unique（**勿上传**）
+  seeddb.bin
+  README.txt
+```
+
+4. 把 `keystone\`、`keystone_private\`、`seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
+   **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进
+   `ctrindex.ini`。
+
+> 旧版 `gm9tools\DumpKeysCTR.gm9` 保留作备用（GM9Script 无法切片文件、不能主动申请写权限，
+> 在实机上会报 "Cannot open destination file"），现在推荐 Lua 版。
+
+## 电脑端转换（可选）：`aeskeys2ctr`
+
+若你只拿到了 `aes_keys.txt` / `aeskeydb.bin` / `slot0x*.bin`（例如用了旧版 .gm9），用这两个工具把 GodMode9 的输出统一转成 handler 的 `keystone\ctraes_retail\` /
 `keystone\ctraes_dev\` 文本格式，并再次按可上传 / 不可上传分类。提供两个等价工具，**二选一**：
 
 - `gm9tools\aeskeys2ctr.bat` —— **无需 Python**，调用系统自带 PowerShell，
@@ -61,7 +76,7 @@
 
 输入可以是：`aes_keys.txt` / `aeskeydb.bin` / 一目录的 `slot0x*.bin`。
 
-若手边有 `boot9.bin`（`DumpKeysCTR.gm9` 会把它放进 `priv\`），加上
+若手边有 `boot9.bin`（Lua 版会写进 `keystone\ctrdevice\<SN>\`，旧版 .gm9 放在 `priv\`），加上
 `--boot9 <boot9.bin>` 即可同时生成 `keystone\pubkey\` 的三个文件（不带参数时
 也会自动在输入目录里找 `boot9.bin`）。这组是**公开公钥**，可随源码/发布包分发。
 
