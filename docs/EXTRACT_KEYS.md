@@ -75,10 +75,11 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 - AES 密钥（含 console-unique）**全部**写进本机单位对应的目录
   （零售→`ctraes_retail`，开发→`ctraes_dev`）。handler 只按 profile 的单位读这一处，
   所以不存在也不需要单独的 "private" 目录。
-- `seeddb.bin` 由 GodMode9 自己构建（Lua 的 `fs.key_dump("seeddb.bin")`，扫描已安装
-  的 title 生成），生成后复制进包；零售机可正常生成。开发机上 GodMode9 目前构建不出，
-  脚本会记录 `NOT built (...) -- skipped` 并继续，**不会中断**——缺它只影响 seed 加密的
-  RomFS，不影响 NAND/CIA。
+- `seeddb.bin` **不需要你准备**：完整公共库（**1861 条**）已内嵌在 Lua 里，脚本每次都会
+  写出完整文件；如果本机 GodMode9 还能从票据拼出额外的 seed（`fs.key_dump`），会按
+  title id **合并**进去（`1861 built-in + N from this console`）。
+  只靠主机是拼不出完整库的——GodMode9 只能扫描**本机已安装 title 的票据**，所以正常零售机
+  只会得到几十字节、1 条的 SeedInfo；完整库必须来自外部数据。
 
 4. 把 `keystone\` 与 `seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
    **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进
