@@ -128,10 +128,14 @@ python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 ```
 <输出目录>\
    keystone\
-      ctraes_retail\ 零售机可上传 -> 复制到 7z.dll 同目录
-      ctraes_dev\     开发机可上传 -> 复制到 7z.dll 同目录
-   keystone_private\  机器特有（勿上传 / 勿分发）
+      ctraes_retail\ 零售机的密钥 -> 复制到 7z.dll 同目录
+      ctraes_dev\     开发机的密钥 -> 复制到 7z.dll 同目录
+   keystone_private\  仅供核对“哪些是机器特有、别外传”，7-Zip CTR 不读它
 ```
+
+> 只有 PC 工具（`aeskeys2ctr`）会生成 `keystone_private\`，纯粹是给你做“可公开 /
+> 勿外传”的对照。**Lua 版 `DumpKeysCTR.lua` 不生成这个目录**：它把所有密钥都写进
+> `ctraes_retail` / `ctraes_dev`，因为 handler 只读这两处。
 
 ## 最终放置
 
