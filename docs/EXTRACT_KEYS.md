@@ -56,12 +56,22 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
       retail_firm_pubkey.bin FIRM 公钥（boot9 @0xB1E0，256B 大端）
       dev_firm_pubkey.bin    FIRM 公钥（boot9 @0xC4E0）
       pubkey.ini             上面两个文件的配置
-    ctrdevice/<序列号>/
+    ctrdevice/<序列号>_<单位>/
       boot9.bin otp.mem otp_dec.mem nand_cid.mem ctrindex.ini
-  keystone_private/*.key      console-unique（**勿上传**）
+  keystone_private/*.key      console-unique 的安全副本（**勿上传**）
   seeddb.bin
   README.txt
+  dump.log                    本次运行的全部日志
 ```
+
+说明：
+- 设备目录名带单位后缀，零售机 `<序列号>_retail`、开发机 `<序列号>_dev`（上面的例子里是
+  `QJF12337954_retail`）。
+- AES 密钥全部写进**本机单位**对应的目录（零售→`ctraes_retail`，开发→`ctraes_dev`），
+  因为 handler 只按 profile 的单位找 keys；console-unique 的那部分另在
+  `keystone_private/` 留一份副本，方便你区分"哪些不能传"。
+- `seeddb.bin` 取不到时（例如 dev 单元上 GodMode9 无法构建）**只记录并跳过**，
+  不影响 NAND/CIA；`dump.log` 里会写明原因。
 
 4. 把 `keystone\`、`keystone_private\`、`seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
    **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进

@@ -204,7 +204,8 @@ TWL 派生只依赖第 5 节已收集的 `otp.mem`（加密）与 `nand_cid.mem`
 
 > 省事做法：运行 `gm9tools\DumpKeysCTR.lua`（GodMode9 的 Lua 脚本），它会一次性把
 > `boot9.bin`、`otp.mem`、`otp_dec.mem`、`nand_cid.mem` 连同写好的 `ctrindex.ini`
-> 放进 `sd:/gm9/out/7zctr-keys/keystone/ctrdevice/<序列号>/`，并顺带导出 FIRM 公钥。
+> 放进 `sd:/gm9/out/7zctr-keys/keystone/ctrdevice/<序列号>_<单位>/`（如
+> `QJF12337954_retail` / `QW00004551_dev`），并顺带导出 FIRM 公钥。
 > 把这个目录拷进 `keystone\ctrdevice\` 即可，**不需要手写 ctrindex.ini**。
 > 下面 1–4 步是手动流程，效果相同。
 
