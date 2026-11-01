@@ -77,7 +77,7 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 
 说明：
 - 设备目录名带单位后缀，零售机 `<序列号>_retail`、开发机 `<序列号>_dev`（上面的例子里是
-  `<serial>_retail`）。
+  `<序列号>_retail`）。
 - AES 密钥（含 console-unique）**全部**写进本机单位对应的目录
   （零售→`ctraes_retail`，开发→`ctraes_dev`）。handler 只按 profile 的单位读这一处，
   所以不存在也不需要单独的 "private" 目录。

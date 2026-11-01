@@ -77,7 +77,7 @@ build\
 Title ID  = C95718FD431D545A
 Common Key= 0x0
 Ticket ID = 9353C6D4DD73A6D9
-Title Key = <redacted-key>
+Title Key = <32 位十六进制>
 Content 0 = id=0xC905D5BC size=0x61800
 ```
 

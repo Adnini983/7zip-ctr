@@ -25,7 +25,7 @@ KeyName=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX   # 32 位十六进制（16 字节）
 示例 `keystone\ctraes_retail\slot0x2CKeyX.key`：
 
 ```
-slot0x2CKeyX=<redacted-key>
+slot0x2CKeyX=<32 位十六进制>
 ```
 
 文件名大小写不敏感（handler 会归一化为小写字母数字）。

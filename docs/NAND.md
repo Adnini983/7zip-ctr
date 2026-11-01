@@ -39,7 +39,7 @@ NAND 镜像头部是一张 NCSD 分区表（magic `NCSD` @ `0x100`）。程序�
 <7z.dll 所在目录>\
    keystone\
       ctrdevice\
-         <设备目录名>\          目录名任意（建议用序列号，如 <serial>_dev）
+         <设备目录名>\          目录名任意（建议用序列号，如 <序列号>_dev）
             ctrindex.ini       设备档案索引（必需）
             boot9.bin          64 KiB 明文 BootROM 转储（必需）
             otp.mem            原始加密 OTP（256B）：CTRNAND 由 boot9 代解，
@@ -162,7 +162,7 @@ NAND 镜像头部是一张 NCSD 分区表（magic `NCSD` @ `0x100`）。程序�
 [ctrindex]
 type=snake
 unit=dev
-sn=<serial>
+sn=<序列号>
 boot9=boot9.bin
 optdec=otp_dec.mem
 optdump=otp.mem
@@ -205,7 +205,7 @@ TWL 派生只依赖第 5 节已收集的 `otp.mem`（加密）与 `nand_cid.mem`
 > 省事做法：运行 `gm9tools\DumpKeysCTR.lua`（GodMode9 的 Lua 脚本），它会一次性把
 > `boot9.bin`、`otp.mem`、`otp_dec.mem`、`nand_cid.mem` 连同写好的 `ctrindex.ini`
 > 放进 `sd:/gm9/out/7zctr-keys/keystone/ctrdevice/<序列号>_<单位>/`（如
-> `<serial>_retail` / `<serial>_dev`），并顺带导出 FIRM 公钥。
+> `<序列号>_retail` / `<序列号>_dev`），并顺带导出 FIRM 公钥。
 > 把这个目录拷进 `keystone\ctrdevice\` 即可，**不需要手写 ctrindex.ini**。
 > 下面 1–4 步是手动流程，效果相同。
 
@@ -240,7 +240,7 @@ TWL 派生只依赖第 5 节已收集的 `otp.mem`（加密）与 `nand_cid.mem`
 （字段见第 3 节）。最小目录示例：
 
 ```
-keystone\ctrdevice\<serial>_dev\
+keystone\ctrdevice\<序列号>_dev\
    boot9.bin
    otp.mem            （加密 OTP，必需；TWL KeyX 取自其前 8 字节）
    otp_dec.mem        （可选，明文 OTP，加速 CTRNAND keyinit）
