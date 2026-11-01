@@ -83,8 +83,8 @@ python gm9tools\aeskeys2ctr.py <devkit_aes_keys.txt> --out <输出目录> --devk
 python gm9tools\aeskeys2ctr.py <aes_keys.txt> --out <输出目录> --all-pub
 ```
 
-两个工具的 AES 密钥参数、分类规则、输出布局完全相同，可互换；
-差异只有一处：`--boot9`（生成 `keystone\pubkey\` 的 FIRM 公钥）只在 Python 版提供。
+两个工具的参数、分类规则、输出布局**完全一致**（含 `--boot9`），可互换：
+`--out` / `--all-pub` / `--devkit` / `--boot9` 行为相同，写出的文件逐字节相同。
 
 输出：
 
