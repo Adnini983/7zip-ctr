@@ -256,51 +256,115 @@ end
 say("")
 say("AES keys:")
 
--- 4a) preferred: GodMode9's own DumpKeys output
+local function import_aes_keys_txt(path)
+  local data = read_all(path)
+  if not data then return 0 end
+  local n = 0
+  for line in data:gmatch("[^\r\n]+") do
+    local name, hex = line:match("^%s*([%w_]+)%s*=%s*(%x+)")
+    if name and hex then
+      emit_key(name, hex)
+      n = n + 1
+    end
+  end
+  return n
+end
+
+-- aeskeydb.bin: 32-byte entries
+--   [0] slot  [1] type ('X'/'Y'/'N'/'I')  [2..11] ident  [14] unit  [16..31] key
+local function import_aeskeydb(path)
+  local ok, st = pcall(fs.stat, path)
+  if not ok or st.type ~= "file" or st.size < 32 then return 0 end
+  local data = fs.read_file(path, 0, st.size)
+  local kinds = { [88] = "X", [89] = "Y", [78] = "N", [73] = "Iv" }
+  local n = 0
+  for off = 0, #data - 32, 32 do
+    local slot = data:byte(off + 1)
+    local kind = kinds[data:byte(off + 2)]
+    if kind then
+      local ident = {}
+      for i = 0, 9 do
+        local b = data:byte(off + 3 + i)
+        if b and b ~= 0 then ident[#ident + 1] = string.char(b) end
+      end
+      local unit_byte = data:byte(off + 15)
+      local keybytes = data:sub(off + 17, off + 32)
+      local nonzero = false
+      for i = 1, 16 do
+        if keybytes:byte(i) ~= 0 then nonzero = true; break end
+      end
+      if nonzero then
+        local name = string.format("slot0x%02xKey%s%s", slot, kind, table.concat(ident))
+        local unit = (unit_byte == 1) and "dev" or ((unit_byte == 2) and "ret" or nil)
+        emit_key(name, tohex(keybytes), unit)
+        n = n + 1
+      end
+    end
+  end
+  return n
+end
+
+local function import_k_drive()
+  local okK, list = pcall(fs.list_dir, "K:/")
+  if not okK or not list then return 0 end
+  local n = 0
+  for _, e in ipairs(list) do
+    if e.type == "file" and e.name:lower():match("^slot0x%x%x") then
+      local data = read_bytes("K:/" .. e.name, 0, 16)
+      if data and #data >= 16 then
+        local base = e.name:gsub("%.bin$", "")
+        local unit = base:match("%.dev$") and "dev" or (base:match("%.ret$") and "ret" or nil)
+        base = base:gsub("%.dev$", ""):gsub("%.ret$", "")
+        emit_key(base, tohex(data:sub(1, 16)), unit)
+        n = n + 1
+      end
+    end
+  end
+  return n
+end
+
+local used = 0
+
+-- 4a) aes_keys.txt (produced by other dumpers, "name=HEX" per line)
 local aes_txt = nil
 for _, cand in ipairs({ GM9OUT .. "/aes_keys.txt", "0:/aes_keys.txt", GM9OUT .. "/7zctr-keys/aes_keys.txt" }) do
   if exists(cand) then aes_txt = cand; break end
 end
 if aes_txt then
-  local data = read_all(aes_txt)
-  if data then
-    local n = 0
-    for line in data:gmatch("[^\r\n]+") do
-      local name, hex = line:match("^%s*([%w_]+)%s*=%s*(%x+)")
-      if name and hex then
-        emit_key(name, hex)
-        n = n + 1
+  used = import_aes_keys_txt(aes_txt)
+  say("  source: %s, %d keys -> loose .key files", aes_txt, used)
+end
+
+-- 4b) aeskeydb.bin on the SD card (no [K:] mount needed)
+if used == 0 then
+  for _, cand in ipairs({ "0:/aeskeydb.bin", GM9OUT .. "/aeskeydb.bin", "0:/gm9/aeskeydb.bin" }) do
+    if exists(cand) then
+      local ok, n = pcall(import_aeskeydb, cand)
+      if ok then
+        used = n
+        if n > 0 then say("  source: %s, %d entries -> loose .key files", cand, n) end
+      else
+        fail("aeskeydb.bin: " .. tostring(n))
       end
+      break
     end
-    say("  source: GodMode9 DumpKeys output, %d keys -> converted to loose .key files", n)
-  else
-    say("  aes_keys.txt exists but cannot be read")
   end
-else
-  -- 4b) fallback: the [K:] AESKEYDB drive
-  say("  aes_keys.txt not found, trying [K:] AESKEYDB ...")
-  local okK, list = pcall(fs.list_dir, "K:/")
-  if okK and list then
-    local n = 0
-    for _, e in ipairs(list) do
-      if e.type == "file" and e.name:lower():match("^slot0x%x%x") then
-        local data = read_bytes("K:/" .. e.name, 0, 16)
-        if data and #data >= 16 then
-          local base = e.name:gsub("%.bin$", "")
-          local unit = base:match("%.dev$") and "dev" or (base:match("%.ret$") and "ret" or nil)
-          base = base:gsub("%.dev$", ""):gsub("%.ret$", "")
-          emit_key(base, tohex(data:sub(1, 16)), unit)
-          n = n + 1
-        end
-      end
-    end
-    say("  source: [K:] AESKEYDB, %d slots -> converted to loose .key files", n)
-  else
-    say("  no key source found.")
-    say("  Run GodMode9's built-in  Scripts -> DumpKeys  first: it writes")
-    say("  0:/gm9/out/aes_keys.txt, which this script converts into .key files.")
-    say("  (Or put aeskeydb.bin in the SD root to use the [K:] AESKEYDB drive.)")
+end
+
+-- 4c) the [K:] AESKEYDB drive
+if used == 0 then
+  used = import_k_drive()
+  if used > 0 then
+    say("  source: [K:] AESKEYDB, %d slots -> loose .key files", used)
   end
+end
+
+if used == 0 then
+  say("  no key source found.")
+  say("  Put a aeskeydb.bin in the SD root (GodMode9 ships data/aeskeydb.bin),")
+  say("  or 0:/gm9/out/aes_keys.txt from another dumper.")
+  say("  NOTE: the public AES keys are identical on every console -- you can")
+  say("  also just reuse the keystone/ctraes_retail folder from the release.")
 end
 
 -- ------------------------------------------------------------ 5. seed database

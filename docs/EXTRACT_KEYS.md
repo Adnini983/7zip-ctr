@@ -36,8 +36,14 @@
 GodMode9 内置 **Lua 5.4**，`gm9tools\DumpKeysCTR.lua` 用它把「AES 密钥 + FIRM 公钥 +
 NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构：
 
-1. 先在 GodMode9 里跑 **Scripts → DumpKeys**（内置），生成 `0:/gm9/out/aes_keys.txt`
-   + `seeddb.bin`。（跳过这步也行，脚本会退回读 [K:] AESKEYDB 盘。）
+1. AES 密钥来源（脚本按顺序自动找，找到就用）：
+   - `0:/gm9/out/aes_keys.txt`（其它工具/整合包导出的文本库）；
+   - **`0:/aeskeydb.bin`**（GodMode9 仓库自带 `data/aeskeydb.bin`，直接放 SD 根目录即可）；
+   - `[K:] AESKEYDB` 盘（挂载了 aeskeydb.bin 时）。
+
+   > 注：GodMode9 自己**没有** "DumpKeys" 这个内置脚本，`aes_keys.txt` 是别的工具产的。
+   > 而且公共 AES 密钥在所有机器上都一样 —— 也可以直接用发布包里现成的
+   > `keystone\ctraes_retail\`，脚本会跳过这一步不影响其它产物。
 2. 把 `gm9tools\DumpKeysCTR.lua` 放进 `sd:/gm9/luascripts/`，
    用 **HOME → Lua scripts...** 运行（或在文件浏览器里选中它 → `Execute Lua script`）。
 3. 结果在 **`sd:/gm9/out/7zctr-keys/`**（就是 `GM9OUT`，GodMode9 自己的输出目录）：
