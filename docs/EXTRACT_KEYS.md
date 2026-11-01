@@ -15,21 +15,27 @@
 
 ## 方案总览
 
-有两种互补途径，推荐**都做**：
+两条途径，任选其一（推荐 B）：
 
-1. **GodMode9 内置 DumpKeys**（Scripts → DumpKeys）——从固件 / 已加载
-   keyslot 生成 `aes_keys.txt` + `seeddb.bin`，覆盖"机器实际能用的密钥"。
-2. **`gm9tools\DumpKeysCTR.gm9`**——把我们需要的密钥按
-   可上传 / 不可上传分好目录导出。
+- **途径 A：`aeskeydb.bin` / 文本密钥库 + 电脑端转换** —— 自备密钥库，
+  在电脑上用 `gm9tools\aeskeys2ctr` 转成 `keystone\ctraes_*`。适合没有实机、
+  或只想补几把密钥的场合。
+- **途径 B：实机运行 `gm9tools\DumpKeysCTR.lua`** —— 一次写出最终可用的
+  `keystone\` 结构（含 FIRM 公钥与 NAND 设备档案），**不需要电脑端转换**。
 
-## 途径 A：GodMode9 内置 DumpKeys（推荐，最全）
+> ⚠️ **途径 B 需要 GodMode9 v2.2.0 及以上。** Lua 支持是 v2.2.0（2025-03-22，
+> "Ninth Anniversary Release"）才加入的；更早的版本（≤ v2.1.1）没有 Lua 引擎，
+> HOME 菜单里不会有 "Lua scripts..."，只能走途径 A。
 
-1. 启动 3DS，按住组合键进 GodMode9（或用 `luma/payloads`）。
-2. 在 GodMode9 里按 HOME → **Scripts** → 选 **DumpKeys**。
-3. 脚本运行后，会在 `sd:/gm9out/` 下生成：
-   - `aes_keys.txt`（Citra 格式：`slot0x2CKeyX=...` 每行）
-   - `seeddb.bin`
-4. 把这两个文件拷回电脑。
+## 途径 A：`aeskeydb.bin` / 文本密钥库 + 电脑端转换
+
+> GodMode9 本身**没有** "DumpKeys" 内置脚本，也不会生成 `aes_keys.txt`：
+> 它只提供 `aeskeydb.bin`（自动挂载为 `[K:] AESKEYDB` 盘）以及 seeddb 的构建。
+> `aes_keys.txt` 这种文本库来自其它工具 / 社区数据。
+
+1. 准备密钥库：把 `aeskeydb.bin` 放到 SD 根目录（GodMode9 仓库自带
+   `data/aeskeydb.bin`），或者从别处取得 `aes_keys.txt`。
+2. 拷回电脑，用下面的[电脑端转换](#电脑端转换可选aeskeys2ctr)转成 `keystone\ctraes_*`。
 
 ## 途径 B：`DumpKeysCTR.lua`（推荐：一次产出最终目录，无需电脑端转换）
 
@@ -50,8 +56,8 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 
 **输出是松散的 `.key` 文件**（每个密钥一个文本文件，`KeyName=32位HEX`），与
 `build\keystone\ctraes_retail\` / `ctraes_dev\` 完全同构 —— handler 只认这种结构，
-不读 `aes_keys.txt`。`aes_keys.txt` 只是 GodMode9 内置 DumpKeys 的中间产物：
-脚本读它、转成 `.key`，**不会**把它带进输出目录。
+不读 `aes_keys.txt`。`aes_keys.txt` 只是**可选**输入（来自其它工具）：脚本读到就
+转成 `.key`，**不会**把它带进输出目录。
 
 ```
 7zctr-keys/
@@ -90,12 +96,13 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
    **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进
    `ctrindex.ini`。
 
-> 旧版 `gm9tools\DumpKeysCTR.gm9` 保留作备用（GM9Script 无法切片文件、不能主动申请写权限，
-> 在实机上会报 "Cannot open destination file"），现在推荐 Lua 版。
+> ⚠️ **版本要求**：本脚本用到 GodMode9 的 Lua API（`fs.read_file` / `fs.write_file` /
+> `fs.mkdir` / `fs.allow` / `sys.serial` 等），需要 **GodMode9 v2.2.0（2025-03-22）或更新**。
+> v2.1.1 及更早版本没有 Lua 引擎，跑不了，请改用途径 A。
 
 ## 电脑端转换（可选）：`aeskeys2ctr`
 
-若你只拿到了 `aes_keys.txt` / `aeskeydb.bin` / `slot0x*.bin`（例如用了旧版 .gm9），用这两个工具把 GodMode9 的输出统一转成 handler 的 `keystone\ctraes_retail\` /
+若你只拿到了 `aes_keys.txt` / `aeskeydb.bin` / `slot0x*.bin`，用这两个工具把密钥库统一转成 handler 的 `keystone\ctraes_retail\` /
 `keystone\ctraes_dev\` 文本格式，并再次按可上传 / 不可上传分类。提供两个等价工具，**二选一**：
 
 - `gm9tools\aeskeys2ctr.bat` —— **无需 Python**，调用系统自带 PowerShell，
@@ -104,7 +111,7 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 
 输入可以是：`aes_keys.txt` / `aeskeydb.bin` / 一目录的 `slot0x*.bin`。
 
-若手边有 `boot9.bin`（Lua 版会写进 `keystone\ctrdevice\<SN>\`，旧版 .gm9 放在 `priv\`），加上
+若手边有 `boot9.bin`（Lua 版会写进 `keystone\ctrdevice\<SN>_<unit>\`），加上
 `--boot9 <boot9.bin>` 即可同时生成 `keystone\pubkey\` 的三个文件（不带参数时
 也会自动在输入目录里找 `boot9.bin`）。这组是**公开公钥**，可随源码/发布包分发。
 
@@ -172,13 +179,13 @@ common key（0x3D）通常在固件常量里，GodMode9 的 `data/aeskeydb.bin`
 A：seeddb 的"seed 数据库"主要来自零售机 / 社区整理
 （如 `ihaveamac/3DS-rom-tools`）。开发机如果 seeddb 缺失，
 通常是因为 seed 加密的标题在开发机上以明文 / 不同加密方式提供。
-可先用社区零售机 seeddb.bin 覆盖；开发机专属 seed 暂无法用 GodMode9
-自动导出，需要从开发机的 `/ro/sys/seeddb.bin` 手动导出（见途径 B 的
-`priv\` 目录）。
+需要自带一份完整库：放进 `sd:/gm9/support/seeddb.bin`（GodMode9 自己就读这里），
+脚本会在运行前检查它；开发机也不能凭空生成——主机只知道自己安装过的那些 seed。
 
 **Q：movable.sed / OTP 是干嘛的？**
 A：它们是 console-unique key 的来源（每台机器不同）。
-`DumpKeysCTR.gm9` 会把 `movable.sed` 导出到 `priv\`。**不要上传**。
+Lua 版不会导出 `movable.sed`（当前流程用不到它）；OTP 相关材料在
+`keystone\ctrdevice\<SN>_<unit>\` 里。**不要上传**。
 这些通常不用于解密 ROM（ROM 用的是 common keydata），但保留它们
 可解锁 NAND / SD 数据。
 

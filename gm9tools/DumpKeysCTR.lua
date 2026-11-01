@@ -1,10 +1,12 @@
 -- DumpKeysCTR.lua -- GodMode9 Lua script for 7-Zip CTR
 --
 -- Builds a READY-TO-USE keystone\ tree on the SD card: no PC-side conversion,
--- no manual hex copying. Compared to DumpKeysCTR.gm9 this one can slice files
--- (fs.read_file with an offset) and gets the console data from GodMode9 itself
--- (sys.serial / IS_DEVKIT / CONSOLE_TYPE), so everything lands in the final
--- layout the handler expects.
+-- no manual hex copying. It slices files (fs.read_file with an offset) and gets
+-- the console data from GodMode9 itself (sys.serial / IS_DEVKIT / CONSOLE_TYPE),
+-- so everything lands in the final layout the handler expects.
+--
+-- REQUIRES GodMode9 v2.2.0 (2025-03-22) or newer: Lua support was added in that
+-- release, v2.1.1 and older have no Lua engine (HOME has no "Lua scripts...").
 --
 -- Output: 0:/gm9/out/7zctr-keys/
 --   keystone/ctraes_retail/*.key        retail AES keys   (safe to publish)

@@ -74,7 +74,10 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
   twln（FAT16）/ twlp（FAT12）内部目录遍历与 DSiWare title 自身加密层尚未展开。
   NAND 设备档案（boot9/OTP/NAND CID）为机器特有，需自备，见 [docs/NAND.md](docs/NAND.md)。
 - 个别异常 header 的 ROM 可能无法解密，属样本本身问题。
-- GM9 密钥提取脚本（`gm9tools\DumpKeysCTR.gm9`）需在实机上运行，无实机无法在此验证。
+- 密钥提取脚本 `gm9tools\DumpKeysCTR.lua` 需在实机上运行（无法在此验证），且
+  **需要 GodMode9 v2.2.0（2025-03-22）或更新**——Lua 支持是该版本才加入的，
+  v2.1.1 及更早版本没有 Lua 引擎。旧版请改用发布包自带的 `keystone\` 或
+  `gm9tools\aeskeys2ctr` 转换路径。
 
 ### ❌ 未实现
 
