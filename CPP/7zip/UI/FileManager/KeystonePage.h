@@ -21,9 +21,11 @@ class CKeystonePage : public NWindows::NControl::CPropertyPage
 
   bool _needSave;
   bool _initMode;
+  HICON _hFolderIcon;   // borrowed by the four browse buttons, freed in ~CKeystonePage
 
 public:
   CKeystonePage();
+  ~CKeystonePage();
 
 private:
   UString GetExeDir() const;
@@ -32,6 +34,7 @@ private:
   void BrowsePath(NWindows::NControl::CDialogChildControl &edit, const UString &title);
   void OpenFolder(NWindows::NControl::CDialogChildControl &edit, const UString &fallback);
   void ResetDefaults();
+  void ApplyFolderIcons();
   void ModifiedEvent();
 
   virtual bool OnInit() Z7_override;
