@@ -12,6 +12,9 @@ rem  Output (under --out, default "keystone_out"):
 rem    keystone\ctraes_retail\   retail publishable  -> copy next to 7z.dll
 rem    keystone\ctraes_dev\       devkit publishable  -> copy next to 7z.dll
 rem    keystone_private\         console-unique / OTP-derived (DO NOT publish)
+rem
+rem  NOTE: FIRM public keys (keystone\pubkey\) are extracted only by the
+rem        Python version (aeskeys2ctr.py --boot9). This BAT handles AES keys only.
 rem ============================================================
 setlocal EnableExtensions
 set "AK2CTR_IN="
