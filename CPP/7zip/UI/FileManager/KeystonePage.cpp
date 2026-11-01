@@ -107,8 +107,10 @@ void CKeystonePage::ApplyFolderIcons()
   if (!_hFolderIcon)
     return;
 
-  const int ids[] = { IDB_KEY_RETAIL_BROWSE, IDB_KEY_DEV_BROWSE,
-                      IDB_KEY_DEVICE_BROWSE, IDB_KEY_FIRM_BROWSE };
+  // The right-hand buttons ("open this folder in Explorer"); the left-hand ones
+  // keep their "..." caption and need no icon.
+  const int ids[] = { IDB_KEY_RETAIL_OPEN, IDB_KEY_DEV_OPEN,
+                      IDB_KEY_DEVICE_OPEN, IDB_KEY_FIRM_OPEN };
   for (unsigned i = 0; i < sizeof(ids) / sizeof(ids[0]); i++)
   {
     HWND b = GetDlgItem(*this, ids[i]);
