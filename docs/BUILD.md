@@ -134,6 +134,18 @@ copy /b x64\7zipInstall.exe + payload.7z ..\7zip-ctr-26.04-CTR02-x64.exe
   `7zipInstall.exe` 改名——见上方打包易错点。
 - 变更 stub 后建议先在隔离目录跑一次 `安装包 /S /D=<无空格路径>` 再卸载，确认
   装/卸都正常（会写 HKLM，勿在已装有机器的路径上做）。
+- **完整性级别（踩过的坑）**：如果构建/打包目录位于低完整性（Low IL）或被沙箱化的
+  位置，产物会继承 `Mandatory Label\Low Mandatory Level`。这样的 `x64.exe` 双击运行时
+  进程也跑在 Low IL，**无法写入 `Program Files`**，表现为安装到第一个文件就报
+  `Can't open file …\7-zip.chm 拒绝访问`。用保留 NTFS 权限的复制工具（FastCopy 等）
+  把安装包拷到别处也会带着这个标签，同样报错；资源管理器普通复制则不会（新文件继承
+  目标目录的 Medium 标签）。发布/自测前先清一遍：
+
+  ```bat
+  for /r release %%F in (*) do icacls "%%F" /setintegritylevel Medium
+  ```
+
+  核对：`icacls "x64.exe" | findstr Mandatory` 应显示 `Medium Mandatory Level`。
 
 ## 自测
 
