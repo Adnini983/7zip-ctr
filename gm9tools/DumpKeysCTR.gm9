@@ -1,5 +1,12 @@
 # DumpKeysCTR.gm9 -- 7-Zip CTR key / material dumper (GodMode9 1.9+)
 #
+# LEGACY. Prefer DumpKeysCTR.lua: it uses GodMode9's Lua API (fs.read_file with
+# offsets, fs.allow, fs.mkdir recursive, sys.serial) and writes the final
+# keystone\ layout in one go. GM9Script has no file slicing, no way to ask for
+# write permission, and no console identity -- that is why this script needs the
+# PC-side aeskeys2ctr step and why "cp" failed with "Cannot open destination
+# file" on real hardware.
+#
 # Output on the SD card:
 #   0:/gm9out/7zctr-keys/pub/     AES keys that are safe to publish
 #   0:/gm9out/7zctr-keys/priv/    console-unique material -- NEVER upload
@@ -20,7 +27,10 @@
 
 set PREVIEW_MODE "quick"
 
-set OUT "0:/gm9out/7zctr-keys"
+set OUT "0:/gm9/out/7zctr-keys"
+
+# GM9Script writes are permission-checked; grant the whole subtree first.
+allow -a $[OUT]
 if not exist $[OUT]
   mkdir $[OUT]
 end
