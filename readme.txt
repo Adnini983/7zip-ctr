@@ -1,4 +1,4 @@
-﻿7-Zip CTR 26.04-CTR02
+﻿7-Zip CTR 26.04-CTR03
 =====================
 
 7-Zip CTR is a fork of 7-Zip 26.04 that adds read-only browsing and extraction of

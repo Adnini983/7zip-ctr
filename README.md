@@ -6,7 +6,7 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 自己的实机提取后放入与 `7z.dll` 同目录的 `keystone\ctraes_retail\` 与
 `keystone\ctraes_dev\` 文件夹；目录位置可在 `keystone.ini` 中自定义。
 
-- **版本**：`26.04-CTR02`
+- **版本**：`26.04-CTR03`
 - **构建目标**：Windows x64（`7z.dll` / `7z.exe` / `7zFM.exe` / `7zG.exe` / `7-zip.dll`）
 - **许可**：见 [许可](#许可) 一节
 
