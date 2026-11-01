@@ -33,6 +33,13 @@ namespace NN3ds {
 
 static const UInt64 kMediaUnit = 0x200;
 
+// [off, off + size) must lie inside [0, limit]. The subtraction form cannot
+// overflow, unlike "off + size <= limit".
+static bool IsRangeOk(UInt64 off, UInt64 size, UInt64 limit)
+{
+  return off <= limit && size <= limit - off;
+}
+
 #define MY_ALIGN_16(x)  (((x) + 15) & ~(UInt64)15)
 #define MY_ALIGN_200(x) (((x) + 0x1FF) & ~(UInt64)0x1FF)
 
@@ -2252,6 +2259,8 @@ Z7_CLASS_IMP_CHandler_IInArchive_1(
   bool _isDev;              // unit-key type (dev vs retail), lazily determined
   bool _isDevSet;
 
+  UInt64 _fileSize;         // size of the opened stream (bounds checks)
+
   UString _srcDir;          // directory of the opened source file (nand.bin),
                             // used to look up per-device key material next to it
 
@@ -2358,11 +2367,11 @@ Z7_CLASS_IMP_CHandler_IInArchive_1(
     return S_OK;
   }
 
-  HRESULT ParseExeFS(UInt64 base, const UString &prefix,
+  HRESULT ParseExeFS(UInt64 base, UInt64 limit, const UString &prefix,
       const Byte *nk0 = NULL, const Byte *nk1 = NULL, const Byte *ctr2 = NULL, bool inner = false);
-  HRESULT ParseRomFS(UInt64 base, const UString &prefix,
+  HRESULT ParseRomFS(UInt64 base, UInt64 limit, const UString &prefix,
       const Byte *nk1 = NULL, const Byte *ctr3 = NULL, bool inner = false);
-  HRESULT ParseNCCH(UInt64 base, const UString &prefix);
+  HRESULT ParseNCCH(UInt64 base, UInt64 limit, const UString &prefix);
   HRESULT ParseCia(UInt64 base);
   HRESULT ParseNcsd(UInt64 base);
   HRESULT ParseNandNcsd(UInt64 base);
@@ -2376,7 +2385,7 @@ public:
     : _titleKeyOk(false), _titleKeyNewOk(false), _cryptKeyPtr(NULL),
       _cryptActive(false), _cryptStart(0), _cryptPos(0),
       _decStart(0), _decActive(false), _decUseNew(false),
-      _isDev(false), _isDevSet(false),
+      _isDev(false), _isDevSet(false), _fileSize(0),
       _cntOff(0), _cntSize(0), _cntFound(false), _cupCount(0)
   {
     memset(_titleKey, 0, 16);
@@ -2489,6 +2498,8 @@ HRESULT CHandler::ParseFirm(UInt64 base)
     UInt32 size = GetUi32(sh + 0x08);
     if (size == 0)
       continue;
+    if (!IsRangeOk(base + off, size, _fileSize))
+      continue;   // section outside the FIRM image
     total++;
 
     // verify the embedded per-section SHA-256 (sh+0x10, 32 bytes) on a stream
@@ -2541,7 +2552,7 @@ HRESULT CHandler::ParseFirm(UInt64 base)
 // ----------------------------------------------------------------
 // ExeFS
 // ----------------------------------------------------------------
-HRESULT CHandler::ParseExeFS(UInt64 base, const UString &prefix,
+HRESULT CHandler::ParseExeFS(UInt64 base, UInt64 limit, const UString &prefix,
     const Byte *nk0, const Byte *nk1, const Byte *ctr2, bool inner)
 {
   Byte hdr[0x200];
@@ -2558,6 +2569,8 @@ HRESULT CHandler::ParseExeFS(UInt64 base, const UString &prefix,
     UInt32 size = GetUi32(e + 12);
     if (size == 0)
       continue;
+    if (!IsRangeOk(base + 0x200 + off, size, limit))
+      continue;   // file range escapes the ExeFS region: ignore this entry
     UString name = ReadName8(e);
     // banner/icon use keyid 0 (signature key); all others use keyid 1.
     bool k0 = (name == L"banner" || name == L"icon");
@@ -2574,7 +2587,7 @@ HRESULT CHandler::ParseExeFS(UInt64 base, const UString &prefix,
 //   IVFC header @ base, level3 header @ base + 0x1000
 //   level3 offsets are relative to (base + 0x1000)
 // ----------------------------------------------------------------
-HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
+HRESULT CHandler::ParseRomFS(UInt64 base, UInt64 limit, const UString &prefix,
     const Byte *nk1, const Byte *ctr3, bool inner)
 {
   Byte hdr[0x1000];
@@ -2606,6 +2619,11 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
   UInt64 fmBase = lv3 + offFileMeta;  // file meta table
   UInt64 fdBase = lv3 + offFileData;  // file data
 
+  // every metadata/data offset in the level-3 header is attacker-controlled:
+  // reject the whole RomFS when one of the three base pointers escapes it.
+  if (!IsRangeOk(lv3, 0x28, limit) || dmBase > limit || fmBase > limit || fdBase > limit)
+    return S_FALSE;
+
   // DirMeta: parent@0, sibling@4, child@8, file@0xC, samehash@0x10, name_len@0x14, wname@0x18
   // FileMeta: parent@0, sibling@4, data@8(u64), size@0x10(u64), samehash@0x18, name_len@0x1C, wname@0x20
 
@@ -2623,25 +2641,59 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
     stack.Add(root);
   }
 
-  CObjectVector<UInt32> seenDirs;
+  // Visited directory-meta offsets: a linear scan is O(n^2) and a crafted image
+  // with thousands of directory nodes made the open take minutes.
+  const unsigned kSeenSlots = 1u << 16;
+  CByteBuffer seenBuf;
+  seenBuf.Alloc((size_t)kSeenSlots * sizeof(UInt32));
+  UInt32 *seen = (UInt32 *)(Byte *)seenBuf;
+  memset(seen, 0xFF, (size_t)kSeenSlots * sizeof(UInt32));
   UInt32 dirCount = 0, fileCount = 0;
+  struct CSeen
+  {
+    UInt32 *T;
+    unsigned N;
+    bool Has(UInt32 v) const
+    {
+      unsigned h = (v * 2654435761u) & (N - 1);
+      for (unsigned i = 0; i < N; i++)
+      {
+        if (T[h] == v) return true;
+        if (T[h] == 0xFFFFFFFF) return false;
+        h = (h + 1) & (N - 1);
+      }
+      return true;   // table full: stop expanding rather than loop
+    }
+    void Add(UInt32 v) const
+    {
+      unsigned h = (v * 2654435761u) & (N - 1);
+      for (unsigned i = 0; i < N; i++)
+      {
+        if (T[h] == 0xFFFFFFFF) { T[h] = v; return; }
+        if (T[h] == v) return;
+        h = (h + 1) & (N - 1);
+      }
+    }
+  };
+  CSeen seenSet;
+  seenSet.T = seen;
+  seenSet.N = kSeenSlots;
   while (stack.Size() != 0)
   {
-    if (dirCount > 200000)
-      break;   // safety cap (dedupe should normally prevent this)
+    if (dirCount > 65535 || fileCount > (1u << 20))
+      break;   // hard cap on a hostile image
     CWalk cur = stack[stack.Size() - 1];
     stack.DeleteBack();
     UInt32 dOff = cur.DirOff;
     if (dOff == 0xFFFFFFFF)
       continue;
-    bool isSeen = false;
-    for (UInt32 _s = 0; _s < seenDirs.Size(); _s++)
-      if (seenDirs[_s] == dOff) { isSeen = true; break; }
-    if (isSeen)
+    if (seenSet.Has(dOff))
       continue;
-    seenDirs.Add(dOff);
+    seenSet.Add(dOff);
     dirCount++;
 
+    if (!IsRangeOk(dmBase + dOff, 0x18, limit))
+      continue;   // directory record outside the RomFS region
     Byte dent[0x18];
     RINOK(ReadDec(dmBase + dOff, dent, 0x18));
     if (inner && nk1)
@@ -2651,7 +2703,7 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
     UInt32 nameLen = GetUi32(dent + 0x14);
 
     UString dirName;
-    if (nameLen > 0 && nameLen < 0x400)
+    if (nameLen > 0 && nameLen < 0x400 && IsRangeOk(dmBase + dOff + 0x18, nameLen, limit))
     {
       CByteBuffer nb;
       nb.Alloc((size_t)nameLen);
@@ -2670,8 +2722,10 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
     // files in this dir
     UInt32 fOff = file;
     UInt32 guard = 0;
-    while (fOff != 0xFFFFFFFF && guard++ < (1 << 22))
+    while (fOff != 0xFFFFFFFF && guard++ < (1 << 16))
     {
+      if (!IsRangeOk(fmBase + fOff, 0x20, limit))
+        break;   // file record outside the RomFS region
       Byte fent[0x20];
       RINOK(ReadDec(fmBase + fOff, fent, 0x20));
       if (inner && nk1)
@@ -2682,7 +2736,7 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
       UInt32 fnameLen = GetUi32(fent + 0x1C);
 
       UString fname;
-      if (fnameLen > 0 && fnameLen < 0x400)
+      if (fnameLen > 0 && fnameLen < 0x400 && IsRangeOk(fmBase + fOff + 0x20, fnameLen, limit))
       {
         CByteBuffer nb;
         nb.Alloc((size_t)fnameLen);
@@ -2695,7 +2749,7 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
         fname = L"file";
 
       // ---- SNAKE update container: remember CupList title ids and Contents.cnt ----
-      if (fname == L"CupList")
+      if (fname == L"CupList" && dataSize <= 0x800 && IsRangeOk(fdBase + dataOff, dataSize, limit))
       {
         size_t cln = (size_t)dataSize;
         CByteBuffer clb;
@@ -2709,7 +2763,7 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
         for (unsigned _c = 0; _c < _cupCount; _c++)
           _cupTitles[_c] = GetUi64((Byte *)clb + _c * 8);
       }
-      else if (fname == L"Contents.cnt")
+      else if (fname == L"Contents.cnt" && IsRangeOk(fdBase + dataOff, dataSize, limit))
       {
         _cntOff = fdBase + dataOff;
         _cntSize = dataSize;
@@ -2717,9 +2771,12 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
         _cntDir = thisPath;
       }
 
-      AddItem(thisPath + fname, fdBase + dataOff, dataSize, false,
-          false, 0, NULL, false,
-          (inner && nk1) ? nk1 : NULL, ctr3, base, 0);
+      if (IsRangeOk(fdBase + dataOff, dataSize, limit))
+        AddItem(thisPath + fname, fdBase + dataOff, dataSize, false,
+            false, 0, NULL, false,
+            (inner && nk1) ? nk1 : NULL, ctr3, base, 0);
+      if (sibling == fOff)
+        break;   // self-referencing chain
       fOff = sibling;
       fileCount++;
     }
@@ -2727,23 +2784,27 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
     // push subdirectories
     UInt32 cOff = child;
     guard = 0;
-    while (cOff != 0xFFFFFFFF && guard++ < (1 << 22))
+    while (cOff != 0xFFFFFFFF && guard++ < (1 << 16))
     {
-      bool pushed = false;
-      for (UInt32 _s = 0; _s < seenDirs.Size(); _s++)
-        if (seenDirs[_s] == cOff) { pushed = true; break; }
-      if (!pushed)
+      if (!seenSet.Has(cOff))
       {
         CWalk w;
         w.DirOff = cOff;
         w.Path = thisPath;
         stack.Add(w);
       }
+      if (!IsRangeOk(dmBase + cOff, 0x18, limit))
+        break;
       Byte dent2[0x18];
       RINOK(ReadDec(dmBase + cOff, dent2, 0x18));
       if (inner && nk1)
         AesCtr_Decode3ds(nk1, ctr3, (dmBase + cOff) - base, dent2, 0x18);
-      cOff = GetUi32(dent2 + 0x04); // sibling of this child dir
+      {
+        const UInt32 sib = GetUi32(dent2 + 0x04);   // sibling of this child dir
+        if (sib == cOff)
+          break;   // self-referencing chain
+        cOff = sib;
+      }
     }
   }
 
@@ -2772,6 +2833,8 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
           continue;
         UInt64 cOff = _cntOff + (UInt64)eOff + 0xC00;
         UInt64 cSize = (UInt64)eEnd - eOff;
+        if (!IsRangeOk(cOff, cSize, _cntOff + _cntSize))
+          continue;   // entry escapes the Contents.cnt container
         // Per-title CIAs are collected in a dedicated "Contents/" subfolder of
         // the cnt's directory, instead of being flattened next to Contents.cnt.
         UString nm = _cntDir + UString(L"Contents/") + HexUInt64Padded(_cupTitles[i]) + UString(L".cia");
@@ -2786,8 +2849,10 @@ HRESULT CHandler::ParseRomFS(UInt64 base, const UString &prefix,
 // ----------------------------------------------------------------
 // NCCH (CXI/CFA)
 // ----------------------------------------------------------------
-HRESULT CHandler::ParseNCCH(UInt64 base, const UString &prefix)
+HRESULT CHandler::ParseNCCH(UInt64 base, UInt64 limit, const UString &prefix)
 {
+  if (!IsRangeOk(base, 0x200, limit))
+    return S_FALSE;
   Byte hdr[0x200];
   RINOK(ReadDec(base, hdr, 0x200));
 
@@ -2800,6 +2865,14 @@ HRESULT CHandler::ParseNCCH(UInt64 base, const UString &prefix)
   UInt64 exefsSize = (UInt64)GetUi32(hdr + 0x1A4) * kMediaUnit;
   UInt64 romfsOff  = (UInt64)GetUi32(hdr + 0x1B0) * kMediaUnit;
   UInt64 romfsSize = (UInt64)GetUi32(hdr + 0x1B4) * kMediaUnit;
+
+  // The two regions are described by the NCCH header and must stay inside it.
+  // A region that escapes the container is treated as absent (its data would be
+  // another region's bytes, or past EOF).
+  if (exefsSize != 0 && !IsRangeOk(base + exefsOff, exefsSize, limit))
+    exefsSize = 0;
+  if (romfsSize != 0 && !IsRangeOk(base + romfsOff, romfsSize, limit))
+    romfsSize = 0;
 
   // ---- NCCH data-region AES-CTR (GodMode9 SetNcchKey / CryptNcch) ----
   Byte flags3 = hdr[0x18B];   // hdr + 0x188 + 3
@@ -2948,7 +3021,8 @@ HRESULT CHandler::ParseNCCH(UInt64 base, const UString &prefix)
     }
     if (valid)
     {
-      RINOK(ParseExeFS(base + exefsOff, prefix, nk0, haveNk1 ? nk1 : nk0, c2, inner));
+      RINOK(ParseExeFS(base + exefsOff, base + exefsOff + exefsSize, prefix,
+          nk0, haveNk1 ? nk1 : nk0, c2, inner));
     }
     else
     {
@@ -2974,7 +3048,8 @@ HRESULT CHandler::ParseNCCH(UInt64 base, const UString &prefix)
     if (plain)
     {
       // plaintext RomFS (IVFC): parse directly, inner layer off; or decrypted above
-      RINOK(ParseRomFS(base + romfsOff, prefix, haveNk1 ? nk1 : NULL, c3, haveNk1));
+      RINOK(ParseRomFS(base + romfsOff, base + romfsOff + romfsSize, prefix,
+          haveNk1 ? nk1 : NULL, c3, haveNk1));
     }
     if (!plain)
     {
@@ -3011,7 +3086,7 @@ HRESULT CHandler::ParseCia(UInt64 base)
   UInt32 metaSize   = GetUi32(hdr + 0x14);
   UInt64 contentSize= GetUi64(hdr + 0x18);
 
-  if (headerSize < 0x20 || (type & 0xFFFF) > 1)
+  if (headerSize < 0x20 || (type & 0xFFFF) > 1 || !IsRangeOk(base, headerSize, _fileSize))
     return S_FALSE;
 
   // ---- fill archive technical info (Properties dialog) ----
@@ -3038,7 +3113,7 @@ HRESULT CHandler::ParseCia(UInt64 base)
 
   // ---- decrypt the title key from the ticket (GodMode9 CryptTitleKey) ----
   _titleKeyOk = false;
-  if (tikSize >= 0x1F4)
+  if (tikSize >= 0x200 && IsRangeOk(base + offsetTicket, tikSize, _fileSize))
   {
     Byte tik[0x200];
     RINOK(ReadAt(base + offsetTicket, tik, 0x200));
@@ -3119,6 +3194,8 @@ HRESULT CHandler::ParseCia(UInt64 base)
   // content region: a sequence of NCCH contents
   UInt64 contentPos = base + offsetContent;
   UInt64 contentEnd = contentPos + contentSize;
+  if (contentEnd > _fileSize)
+    contentEnd = _fileSize;   // never read past EOF
 
   UInt32 idx = 0;
   UInt64 p = contentPos;
@@ -3216,7 +3293,13 @@ HRESULT CHandler::ParseCia(UInt64 base)
     HRESULT res2;
     if (enc)
     {
-      if (keyPtr)
+      if (keyPtr && csize > ((UInt64)256 << 20))
+      {
+        // Content far beyond a sane pre-decode size: keep it as one entry instead of
+        // allocating hundreds of MB up-front (extraction still decrypts on the fly).
+        res2 = S_FALSE;
+      }
+      else if (keyPtr)
       {
         // decrypt the whole content region into memory for fast random access
         _decActive = false;
@@ -3245,7 +3328,7 @@ HRESULT CHandler::ParseCia(UInt64 base)
           }
           _decActive = true;
         }
-        res2 = ParseNCCH(p, dirPrefix);
+        res2 = ParseNCCH(p, p + csize, dirPrefix);
         _decActive = false;
         _decBuf.Free();
       }
@@ -3255,7 +3338,7 @@ HRESULT CHandler::ParseCia(UInt64 base)
         res2 = S_FALSE;
     }
     else
-      res2 = ParseNCCH(p, dirPrefix);   // plaintext content: expand directly
+      res2 = ParseNCCH(p, p + csize, dirPrefix);   // plaintext content: expand directly
 
     if (res2 == S_FALSE || _items.Size() == before)
     {
@@ -3312,8 +3395,11 @@ HRESULT CHandler::ParseNcsd(UInt64 base)
       continue;
     _info.NumPartitions++;
     UInt64 partBase = base + (UInt64)off * kMediaUnit;
+    UInt64 partEnd = partBase + (UInt64)size * kMediaUnit;
+    if (!IsRangeOk(partBase, (UInt64)size * kMediaUnit, _fileSize))
+      continue;   // partition outside the image
     UString prefix = UString(L"Partition_") + NumToUString(i) + UString(L"/");
-    RINOK(ParseNCCH(partBase, prefix));
+    RINOK(ParseNCCH(partBase, partEnd, prefix));
   }
 
   return S_OK;
@@ -3626,15 +3712,20 @@ static UInt32 TmdSigY(UInt32 sigType)
 
 HRESULT CHandler::ParseTmd(UInt64 base)
 {
-  Byte hdr[0x200];
-  RINOK(ReadAt(base, hdr, sizeof(hdr)));
+  Byte sigBuf[4];
+  RINOK(ReadAt(base, sigBuf, 4));
 
-  UInt32 sigType = GetBe32(hdr + 0x00);
+  const UInt32 sigType = GetBe32(sigBuf);
   if (sigType != 0x010003 && sigType != 0x010004 && sigType != 0x010005)
     return S_FALSE;
-  UInt32 Y = TmdSigY(sigType);
-  if (Y + 0xA0 > sizeof(hdr))
+  const UInt32 Y = TmdSigY(sigType);
+  // RSA4096 TMDs (0x010003) put the header at 0x240, so a fixed 0x200 buffer
+  // silently rejected them: size the header from the signature type instead.
+  const UInt32 tmdHdrSize = Y + 0xA0;
+  if (tmdHdrSize > 0x400 || !IsRangeOk(base, tmdHdrSize, _fileSize))
     return S_FALSE;
+  Byte hdr[0x400];
+  RINOK(ReadAt(base, hdr, tmdHdrSize));
   // issuer must start with "Root-"
   if (memcmp(hdr + Y, "Root-", 5) != 0)
     return S_FALSE;
@@ -3707,7 +3798,7 @@ HRESULT CHandler::Open2(IInStream *)
 
   // NCCH / NCSD magic lives at 0x100
   if (memcmp(hdr + 0x100, "NCCH", 4) == 0)
-  {  return ParseNCCH(0, UString()); }
+  {  return ParseNCCH(0, _fileSize, UString()); }
   if (memcmp(hdr + 0x100, "NCSD", 4) == 0)
   {
     
@@ -3747,7 +3838,7 @@ HRESULT CHandler::Open2(IInStream *)
   {
     _info.Clear();
     _info.Container = 5;
-    return ParseRomFS(0, UString(), NULL, NULL, false);
+    return ParseRomFS(0, _fileSize, UString(), NULL, NULL, false);
   }
 
   // Standalone plaintext ExeFS (exefs.bin): no magic; validate the 10 entries.
@@ -3755,7 +3846,7 @@ HRESULT CHandler::Open2(IInStream *)
   {
     _info.Clear();
     _info.Container = 6;
-    return ParseExeFS(0, UString(), NULL, NULL, NULL, false);
+    return ParseExeFS(0, _fileSize, UString(), NULL, NULL, NULL, false);
   }
 
   return S_FALSE;
@@ -3766,6 +3857,17 @@ Z7_COM7F_IMF(CHandler::Open(IInStream *stream, const UInt64 *, IArchiveOpenCallb
   COM_TRY_BEGIN
   Close();
   _stream = stream;
+  // remember the stream length: every parser validates its offsets against it
+  _fileSize = 0;
+  {
+    UInt64 cur = 0, end = 0;
+    if (_stream->Seek(0, STREAM_SEEK_CUR, &cur) == S_OK)
+    {
+      if (_stream->Seek(0, STREAM_SEEK_END, &end) == S_OK)
+        _fileSize = end;
+      _stream->Seek((Int64)cur, STREAM_SEEK_SET, NULL);
+    }
+  }
   // 7-Zip CTR: capture the source file's directory so per-device key material
   // sitting next to nand.bin can be used when keystone\ctrdevice has no match.
   _srcDir.Empty();
