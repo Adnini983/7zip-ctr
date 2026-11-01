@@ -1,4 +1,4 @@
-# 7-Zip CTR
+﻿# 7-Zip CTR
 
 在 **7-Zip 26.04** 基础上加入对任天堂 3DS / New Nintendo 3DS 容器格式的只读
 挂载与解包支持，把 GodMode9 / ctrtool 的解包能力移植为 7-Zip 的一个 archive
@@ -125,6 +125,8 @@ handler（`N3dsHandler`）。**代码中不包含任何硬编码密钥**——�
 | [ihaveamac/3DS-rom-tools](https://github.com/ihaveamac/3DS-rom-tools) | `seeddb.bin` 的获取与格式来源 | MIT |
 | [redbooth/free-file-icons](https://github.com/redbooth/free-file-icons) | 图标模板资源（已并入 `Archive\Icons`） | MIT |
 | [toiry921/CupTheCnt](https://github.com/toiry921/CupTheCnt) | Contents.cnt 格式的**参考**（该仓库无开源协议，仅作格式参考，未引用其代码） | 无协议 |
+
+完整的第三方组件、许可与分发义务清单见 [THIRD_PARTY.md](THIRD_PARTY.md)。
 
 **密钥合规说明**：本仓库**不附带任何密钥材料**。解密所需的 AES 密钥可从
 **已公开的 3DS 研究材料**中获得（例如公开流传的 keydata 集合），或由用户

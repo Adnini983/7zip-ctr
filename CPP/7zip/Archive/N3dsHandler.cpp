@@ -1125,6 +1125,17 @@ static UString CacheFilePath()
 
 // FNV-1a 64-bit over files matching `pattern` in dir (size + last-write time).
 // Any add/remove/modify of a source file changes the signature.
+// FNV-1a mix of one 64-bit value.
+static void FnvMix64(UInt64 &h, UInt64 v)
+{
+  h ^= v;
+  h *= 1099511628211ULL;
+}
+
+// Signature of a key/device folder. It must change whenever the material that
+// feeds a derivation changes, so the name and (for small files) the CONTENT are
+// hashed, not just size+mtime: replacing boot9.bin with another dump of the same
+// size and timestamp used to keep a stale derivation alive.
 static UInt64 DirSig64(const UString &dir, const wchar_t *pattern)
 {
   UInt64 h = 1469598103934665603ULL;
@@ -1137,10 +1148,31 @@ static UInt64 DirSig64(const UString &dir, const wchar_t *pattern)
     {
       if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
       {
-        UInt64 sz = ((UInt64)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
-        UInt64 mt = ((UInt64)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
-        h ^= sz; h *= 1099511628211ULL;
-        h ^= mt; h *= 1099511628211ULL;
+        const UInt64 sz = ((UInt64)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+        const UInt64 mt = ((UInt64)fd.ftLastWriteTime.dwHighDateTime << 32) | fd.ftLastWriteTime.dwLowDateTime;
+        FnvMix64(h, sz);
+        for (const wchar_t *c = fd.cFileName; *c; c++)
+          FnvMix64(h, (UInt64)(*c & 0xFFFF));
+        if (sz <= (8u << 20))   // key material (boot9/otp/cid/*.key) is small
+        {
+          UString fp = dir + UString(L"\\") + (const wchar_t *)fd.cFileName;
+          HANDLE f = CreateFileW(fp.Ptr(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+          if (f != INVALID_HANDLE_VALUE)
+          {
+            Byte cb[4096];
+            DWORD got = 0;
+            while (ReadFile(f, cb, (DWORD)sizeof(cb), &got, NULL) && got != 0)
+            {
+              for (DWORD i = 0; i < got; i++)
+                FnvMix64(h, cb[i]);
+              if (got < sizeof(cb))
+                break;
+            }
+            CloseHandle(f);
+          }
+        }
+        FnvMix64(h, mt);
       }
     } while (FindNextFileW(hf, &fd));
     FindClose(hf);
@@ -1182,6 +1214,8 @@ static void ObfuscateName(const UString &name, Byte *out)
 
 static void KeystoneCacheAppendDevice(const UString &name, const CDeviceNand &dv, UInt64 sig)
 {
+  if (name.Len() > 255)
+    return;   // the record header stores the length in one byte
   UString path = CacheFilePath();
   if (path.IsEmpty())
     return;
@@ -1191,6 +1225,8 @@ static void KeystoneCacheAppendDevice(const UString &name, const CDeviceNand &dv
   //         Nk[4..7] x16 | HasSlotBits u8[8] | HasTwl u8 | TwlNk16 | TwlNonce16
   unsigned cap = 1 + 1 + 1 + (unsigned)dv.Sn.Len() * 2 + 16 + 4 * 16 + 8 + 1 + 16 + 16;
   Byte *plain = (Byte *)malloc(cap);
+  if (!plain)
+    return;
   unsigned p = 0;
   plain[p++] = dv.IsDev ? 1 : 0;
   plain[p++] = dv.IsSnake ? 1 : 0;
@@ -1210,6 +1246,11 @@ static void KeystoneCacheAppendDevice(const UString &name, const CDeviceNand &dv
 
   unsigned dataSize = p;
   Byte *obf = (Byte *)malloc(dataSize);
+  if (!obf)
+  {
+    free(plain);
+    return;
+  }
   for (unsigned i = 0; i < dataSize; i++)
     obf[i] = plain[i] ^ ObfByte(i);
   free(plain);
@@ -1225,13 +1266,12 @@ static void KeystoneCacheAppendDevice(const UString &name, const CDeviceNand &dv
     KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
     KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
     KS_PutU32(q, (UInt32)dataSize); q += 4;
-    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
-    ObfuscateName(name, obfName);
+    Byte nameBuf[512];
+    ObfuscateName(name, nameBuf);
     DWORD wr;
     WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
-    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, nameBuf, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
     WriteFile(h, (const void *)obf, dataSize, &wr, NULL);
-    free(obfName);
     CloseHandle(h);
   }
   free(obf);
@@ -1249,10 +1289,25 @@ static bool KeystoneCacheSigPresent(Byte type, UInt64 sig)
   if (h == INVALID_HANDLE_VALUE)
     return false;
   DWORD sz = GetFileSize(h, NULL);
-  Byte *buf = (Byte *)malloc(sz + 1);
+  if (sz == INVALID_FILE_SIZE || sz > (64u << 20))
+  {
+    CloseHandle(h);
+    return false;
+  }
+  Byte *buf = (Byte *)malloc((size_t)sz + 1);
+  if (!buf)
+  {
+    CloseHandle(h);
+    return false;
+  }
   DWORD rd = 0;
-  ReadFile(h, buf, sz, &rd, NULL);
+  const BOOL readOk = ReadFile(h, buf, sz, &rd, NULL);
   CloseHandle(h);
+  if (!readOk || rd != sz)
+  {
+    free(buf);
+    return false;
+  }
   bool found = false;
   UInt32 pos = 0;
   while (pos + 14 <= sz)
@@ -1281,6 +1336,8 @@ static bool KeystoneCacheSigPresent(Byte type, UInt64 sig)
 // data = IsDev u8 + key[16]; sig = owning key-folder signature for invalidation.
 static void KeystoneCacheAppendKey(const UString &name, const Byte data[16], bool isDev, UInt64 sig)
 {
+  if (name.Len() > 255)
+    return;   // the record header stores the length in one byte
   UString path = CacheFilePath();
   if (path.IsEmpty())
     return;
@@ -1303,13 +1360,12 @@ static void KeystoneCacheAppendKey(const UString &name, const Byte data[16], boo
     KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
     KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
     KS_PutU32(q, 17); q += 4;
-    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
-    ObfuscateName(name, obfName);
+    Byte nameBuf[512];
+    ObfuscateName(name, nameBuf);
     DWORD wr;
     WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
-    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, nameBuf, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
     WriteFile(h, obf, 17, &wr, NULL);
-    free(obfName);
     CloseHandle(h);
   }
 }
@@ -1325,10 +1381,25 @@ static bool KeystoneCacheLoadDevice(const UString &name, UInt64 curSig, CDeviceN
   if (h == INVALID_HANDLE_VALUE)
     return false;
   DWORD sz = GetFileSize(h, NULL);
-  Byte *buf = (Byte *)malloc(sz + 1);
+  if (sz == INVALID_FILE_SIZE || sz > (64u << 20))
+  {
+    CloseHandle(h);
+    return false;
+  }
+  Byte *buf = (Byte *)malloc((size_t)sz + 1);
+  if (!buf)
+  {
+    CloseHandle(h);
+    return false;
+  }
   DWORD rd = 0;
-  ReadFile(h, buf, sz, &rd, NULL);
+  const BOOL readOk = ReadFile(h, buf, sz, &rd, NULL);
   CloseHandle(h);
+  if (!readOk || rd != sz)
+  {
+    free(buf);
+    return false;
+  }
 
   bool ok = false;
   UInt32 pos = 0;
@@ -1377,7 +1448,17 @@ static bool KeystoneCacheLoadDevice(const UString &name, UInt64 curSig, CDeviceN
       }
       dv.IsDev = plain[q++] == 1;
       dv.IsSnake = plain[q++] == 1;
-      Byte snLen = plain[q++];
+      const Byte snLen = plain[q++];
+      // Fixed tail after the serial number: Nonce16 + Nk[4..7] + HasSlot[8]
+      // + HasTwl + TwlNk16 + TwlNonce16 = 121 bytes. A corrupt record must not
+      // push the cursor past the decoded buffer.
+      const unsigned kTailBytes = 16 + 4 * 16 + 8 + 1 + 16 + 16;
+      if ((unsigned)snLen * 2 + kTailBytes > dataSize - 3)
+      {
+        free(plain);
+        pos = next;
+        continue;
+      }
       
       // Build into a local wide buffer then assign as one UString; UString has no
       // safe single-char operator+=, appending char-by-char faults on this build.
@@ -1484,13 +1565,12 @@ static void KeystoneCacheAppendPubKey(bool dev, const Byte N[256], UInt64 sig)
     KS_PutU32(q, (UInt32)(sig & 0xFFFFFFFF)); q += 4;
     KS_PutU32(q, (UInt32)(sig >> 32)); q += 4;
     KS_PutU32(q, 257); q += 4;
-    Byte *obfName = (Byte *)malloc(name.Len() * sizeof(wchar_t));
-    ObfuscateName(name, obfName);
+    Byte nameBuf[512];
+    ObfuscateName(name, nameBuf);
     DWORD wr;
     WriteFile(h, hdr, sizeof(hdr), &wr, NULL);
-    WriteFile(h, obfName, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
+    WriteFile(h, nameBuf, (DWORD)(name.Len() * sizeof(wchar_t)), &wr, NULL);
     WriteFile(h, obf, 257, &wr, NULL);
-    free(obfName);
     CloseHandle(h);
   }
 }
@@ -1507,10 +1587,25 @@ static bool KeystoneCacheLoadPubKey(bool dev, UInt64 sig, Byte N[256])
   if (h == INVALID_HANDLE_VALUE)
     return false;
   DWORD sz = GetFileSize(h, NULL);
-  Byte *buf = (Byte *)malloc(sz + 1);
+  if (sz == INVALID_FILE_SIZE || sz > (64u << 20))
+  {
+    CloseHandle(h);
+    return false;
+  }
+  Byte *buf = (Byte *)malloc((size_t)sz + 1);
+  if (!buf)
+  {
+    CloseHandle(h);
+    return false;
+  }
   DWORD rd = 0;
-  ReadFile(h, buf, sz, &rd, NULL);
+  const BOOL readOk = ReadFile(h, buf, sz, &rd, NULL);
   CloseHandle(h);
+  if (!readOk || rd != sz)
+  {
+    free(buf);
+    return false;
+  }
 
   bool ok = false;
   UInt32 pos = 0;
@@ -3588,9 +3683,13 @@ HRESULT CHandler::ParseNandNcsd(UInt64 base)
     if (!isTwl && (slot == 0 || !match->HasSlot[slot]))
       continue;   // unknown or unsupported slot: list nothing
 
-    _info.NumPartitions++;
     UInt64 absOff = base + (UInt64)offSec * kMediaUnit;
     UInt64 absSz  = (UInt64)szSec * kMediaUnit;
+    // A NAND image is irreplaceable user data: never expose a partition that
+    // does not fit inside the dump, or a zero-length one.
+    if (absSz == 0 || !IsRangeOk(absOff, absSz, _fileSize))
+      continue;
+    _info.NumPartitions++;
     const Byte *useKey = NULL;
     const Byte *useCtr = NULL;
     if (isTwl)
@@ -3626,6 +3725,8 @@ HRESULT CHandler::ParseNandNcsd(UInt64 base)
 // stream, so entries are numbered; the downstream CIA handler still decrypts.)
 HRESULT CHandler::ParseCntStandalone(UInt64 base)
 {
+  if (!IsRangeOk(base, 0x1400, _fileSize))
+    return S_FALSE;   // too small to hold the header + 256 entries
   Byte hb[0x1400];
   RINOK(ReadAt(base, hb, sizeof(hb)));
   if (memcmp(hb, "CONT", 4) != 0)
@@ -3642,6 +3743,8 @@ HRESULT CHandler::ParseCntStandalone(UInt64 base)
       continue;
     UInt64 cOff = base + 0xC00 + (UInt64)eOff;
     UInt64 cSize = (UInt64)eEnd - eOff;
+    if (!IsRangeOk(cOff, cSize, _fileSize))
+      continue;   // entry escapes the container
     // verify a plaintext CIA header (size_header == 0x2020); skip encrypted or
     // padding entries whose first bytes are not the CIA magic
     Byte ch[4];
@@ -3659,7 +3762,8 @@ HRESULT CHandler::ParseCntStandalone(UInt64 base)
       UInt64 offCert   = ((UInt64)hdrSize  + 63) & ~(UInt64)63;
       UInt64 offTik   = offCert + (((UInt64)certSize + 63) & ~(UInt64)63);
       Byte tidRaw[8];
-      if (ReadAt(cOff + offTik + 0x1DC, tidRaw, 8) == S_OK)
+      const UInt64 tidOff = offTik + 0x1DC;
+      if (tidOff + 8 <= cSize && ReadAt(cOff + tidOff, tidRaw, 8) == S_OK)
         tid = GetBe64(tidRaw);
     }
     UString nm;
