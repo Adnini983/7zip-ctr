@@ -36,18 +36,24 @@ local OUT = GM9OUT .. "/7zctr-keys"
 local KS = OUT .. "/keystone"
 local PVT = OUT .. "/keystone_private"
 local SERIAL = (sys.serial and sys.serial ~= "" and sys.serial) or "UNKNOWN"
-local DEV = KS .. "/ctrdevice/" .. SERIAL
 local UNIT = IS_DEVKIT and "dev" or "retail"
 local MODEL = (CONSOLE_TYPE == "N3DS") and "snake" or "ctr"
+local DEV_NAME = SERIAL .. "_" .. UNIT   -- <serial>_retail / <serial>_dev
+local DEV = KS .. "/ctrdevice/" .. DEV_NAME
 local BOOT9 = "M:/boot9.bin"
 
 local PUB_SLOTS = { [0x03] = true, [0x18] = true, [0x1B] = true, [0x25] = true }
 for s = 0x2C, 0x3F do PUB_SLOTS[s] = true end
 
 local stats = { keys = 0, priv = 0, files = 0, fails = 0 }
+local LOG = {}
 
 -- ---------------------------------------------------------------- helpers
-local function say(fmt, ...) print(string.format(fmt, ...)) end
+local function say(fmt, ...)
+  local line = string.format(fmt, ...)
+  print(line)
+  LOG[#LOG + 1] = line
+end
 
 local function fail(msg)
   stats.fails = stats.fails + 1
@@ -147,17 +153,27 @@ local function emit_key(name, hex, unit)
   hex = hex:gsub("[^0-9a-fA-F]", "")
   if #hex < 32 then return end
   hex = hex:sub(1, 32):upper()
-  local dir
-  if is_publishable(name) then
-    local u = unit or unit_of(name)
-    dir = KS .. ((u == "dev") and "/ctraes_dev" or "/ctraes_retail")
-  else
-    dir = PVT
-    stats.priv = stats.priv + 1
-  end
+  -- Everything dumped from this console belongs to this console's unit, and the
+  -- handler only looks at the folder matching the profile's unit, so the whole
+  -- dump goes into ctraes_dev on a devkit and into ctraes_retail otherwise
+  -- (console-unique keys included -- they are needed for some titles).
+  -- An explicit ".dev"/".ret" suffix on a [K:] filename wins.
+  local u
+  if unit then u = unit
+  elseif IS_DEVKIT then u = "dev"
+  else u = "retail" end
+  local dir = KS .. ((u == "dev") and "/ctraes_dev" or "/ctraes_retail")
+  if not is_publishable(name) then stats.priv = stats.priv + 1 end
   local out_name = canonical(name)
-  local ok, err = pcall(write_bytes, dir .. "/" .. out_name .. ".key", out_name .. "=" .. hex .. "\r\n")
+  local body = out_name .. "=" .. hex .. "\r\n"
+  local ok, err = pcall(write_bytes, dir .. "/" .. out_name .. ".key", body)
   if ok then stats.keys = stats.keys + 1 else fail(tostring(err)) end
+  -- console-unique keys stay usable (the handler needs them for some titles)
+  -- but are ALSO mirrored into keystone_private/ so it is obvious what must not
+  -- be uploaded anywhere.
+  if not is_publishable(name) then
+    pcall(write_bytes, PVT .. "/" .. out_name .. ".key", body)
+  end
 end
 
 -- ---------------------------------------------------------------- 1. folders
@@ -213,7 +229,7 @@ end
 
 -- ------------------------------------------------- 3. device profile material
 say("")
-say("Device profile (keystone/ctrdevice/%s):", SERIAL)
+say("Device profile (keystone/ctrdevice/%s):", DEV_NAME)
 do
   local copied = 0
   if copy_file(BOOT9, DEV .. "/boot9.bin") then copied = copied + 1 end
@@ -289,10 +305,25 @@ end
 
 -- ------------------------------------------------------------ 5. seed database
 say("")
-for _, p in ipairs({ "S:/ro/sys/seeddb.bin", "1:/ro/sys/seeddb.bin" }) do
-  if copy_file(p, OUT .. "/seeddb.bin") then
-    say("seeddb.bin: copied from %s", p)
-    break
+do
+  local got = false
+  for _, p in ipairs({ "S:/ro/sys/seeddb.bin", "1:/ro/sys/seeddb.bin" }) do
+    if exists(p) then
+      local ok, err = pcall(fs.copy, p, OUT .. "/seeddb.bin", { overwrite = true, silent = true, no_cancel = true })
+      if ok then
+        stats.files = stats.files + 1
+        say("seeddb.bin: copied from %s", p)
+        got = true
+        break
+      end
+      say("seeddb.bin: WARNING copy from %s failed (%s) -- skipped", p, tostring(err))
+    end
+  end
+  if not got then
+    -- Known limitation: GodMode9 cannot always build seeddb.bin on dev units.
+    -- Missing seeddb only affects seed-encrypted RomFS, never NAND/CIA reading,
+    -- so this is a soft skip, not a failure.
+    say("seeddb.bin: not available on this unit -- skipped")
   end
 end
 
@@ -309,7 +340,20 @@ pcall(write_bytes, OUT .. "/README.txt",
   "  seeddb.bin                 goes next to 7z.dll\r\n\r\n" ..
   "Then open a .firm to check 'FIRM Signature = Valid', and open your nand.bin.\r\n")
 
--- ---------------------------------------------------------------- 7. summary
+-- ---------------------------------------------------------------- 7. log file
+pcall(function()
+  write_bytes(OUT .. "/dump.log",
+    "7-Zip CTR key dump\r\n" ..
+    "started: " .. tostring(os.date("%Y-%m-%d %H:%M:%S")) .. "\r\n" ..
+    "serial : " .. SERIAL .. "\r\n" ..
+    "unit   : " .. UNIT .. "\r\n" ..
+    "model  : " .. MODEL .. "\r\n" ..
+    "result : " .. string.format("%d keys, %d files, %d failures", stats.keys, stats.files, stats.fails) .. "\r\n" ..
+    "\r\n" ..
+    table.concat(LOG, "\r\n") .. "\r\n")
+end)
+
+-- ---------------------------------------------------------------- 8. summary
 say("")
 say("========== done ==========")
 say("output : %s", OUT)
@@ -319,6 +363,6 @@ if stats.fails > 0 then
   say("failures: %d (see [FAIL] lines above)", stats.fails)
 end
 say("layout : keystone/ctraes_retail/*.key  keystone/ctraes_dev/*.key")
-say("         keystone/pubkey/*  keystone/ctrdevice/%s/*", SERIAL)
+say("         keystone/pubkey/*  keystone/ctrdevice/%s/*", DEV_NAME)
 say("copy keystone/ + keystone_private/ + seeddb.bin next to 7z.dll")
 ui.ask("Press A to exit")
