@@ -1128,6 +1128,20 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
       ok = MyRegistry_QueryString(key, k_Reg_Path32, path);
       // ok = MyRegistry_QueryString(key, k_Reg_Path, path);
       RegCloseKey(key);
+
+      /* A remembered path is only worth proposing while that installation still
+         exists. Otherwise a long-deleted trial folder (or a stale registry entry
+         from another build) becomes the default destination, which looks like a
+         bug to the user. Fall back to ProgramFilesDir + \\7-Zip CTR instead. */
+      if (ok)
+      {
+        const DWORD attr = GetFileAttributesW(path);
+        if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY))
+        {
+          path[0] = 0;
+          ok = False;
+        }
+      }
     }
     
     // ok = False;
