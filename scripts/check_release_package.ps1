@@ -9,14 +9,14 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_release_package.ps1 `
 #       -SevenZip <7z.exe> -Package <zip|exe> [<more>...]
 #
-# Note: loose keystone\*.key files are reported (they are the public keybase the
-# handler reads); pass -AllowLooseKeys to accept them, otherwise they fail the
-# audit as well.
+# Note: the release is SUPPOSED to ship the public subset of keystone\*.key (that
+# is the format the handler reads), so loose .key files are accepted by default.
+# Use -ForbidLooseKeys when auditing an artifact that must be repository-like.
 
 param(
     [Parameter(Mandatory = $true)][string]$SevenZip,
     [Parameter(Mandatory = $true)][string[]]$Package,
-    [switch]$AllowLooseKeys
+    [switch]$ForbidLooseKeys
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,7 +53,7 @@ foreach ($pkg in $Package) {
                 $problems.Add("$([IO.Path]::GetFileName($pkg)): private material $rel")
                 continue
             }
-            if (-not $AllowLooseKeys -and $rel -match '(?i)\.key$') {
+            if ($ForbidLooseKeys -and $rel -match '(?i)\.key$') {
                 $problems.Add("$([IO.Path]::GetFileName($pkg)): loose key file $rel")
                 continue
             }

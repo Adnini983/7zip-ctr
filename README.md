@@ -217,9 +217,11 @@ Tools，无需改动即可编译出 `7z.dll` / `7z.exe` / `7zFM.exe` 等）。�
 | 主机序列号 | 文档/脚本中一律写 `<序列号>` |
 | 密钥明文 | 文档中写 `<32 位十六进制>`；脚本内嵌密钥必须混淆（XOR + base64） |
 | 每台机器特有的数据 | `boot9.bin`、`otp.mem`、`otp_dec.mem`、`nand_cid.mem`、`movable.sed`、`ctrindex.ini`、`keystone\ctrdevice\`、`keystone.cache` |
+| 松散 `.key` 文件 | 只在**发布包**里允许（内置的公开 AES 子集，handler 直接读）；仓库内不得出现 |
 
 - 仓库侧：`scripts\check_no_secrets.ps1`（CI 每次构建前执行，命中即失败）
-- 发布侧：`scripts\check_release_package.ps1 -SevenZip 7z.exe -Package <包>`（打包后审计）
+- 发布侧：`scripts\check_release_package.ps1 -SevenZip 7z.exe -Package <包>`（打包后审计；
+  默认接受公开 `.key` 子集，加 `-ForbidLooseKeys` 可要求完全无 `.key`）
 
 ## 致谢
 
