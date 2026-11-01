@@ -1,8 +1,8 @@
-name: build
+﻿name: build
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
   workflow_dispatch:
 
@@ -56,10 +56,44 @@ jobs:
           if not exist out\7z.exe   (echo ERROR: 7z.exe was not built   & exit /b 1)
           if not exist out\Lang\zh-cn.txt (echo ERROR: Lang pack was not copied & exit /b 1)
 
-      - name: Smoke test (list a plaintext romfs)
+      - name: Smoke test (synthetic 3DS containers, no ROM data involved)
         shell: cmd
         run: |
-          out\7z.exe 2>&1 | findstr /C:"7-Zip"
+          rem Every fixture below is generated from scratch by scripts\make_fixtures.ps1:
+          rem a plaintext ExeFS, a plaintext RomFS (one file), and negative cases.
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\make_fixtures.ps1 -OutDir fixtures
+          if not exist fixtures\romfs.bin (echo ERROR: fixture generation failed & exit /b 1)
+
+          rem --- plaintext RomFS: must be recognised and list its file -------------
+          out\7z.exe l fixtures\romfs.bin > smoke_romfs.txt
+          if errorlevel 1 (echo ERROR: romfs.bin did not open & type smoke_romfs.txt & exit /b 1)
+          findstr /C:"RomFS (plaintext)" smoke_romfs.txt >nul || (echo ERROR: romfs container not detected & exit /b 1)
+          findstr /C:"hello.txt" smoke_romfs.txt >nul || (echo ERROR: romfs file not listed & exit /b 1)
+
+          rem --- extraction must reproduce the payload byte for byte ---------------
+          out\7z.exe e fixtures\romfs.bin hello.txt -osmoke_x -y >nul
+          if errorlevel 1 (echo ERROR: romfs extract failed & exit /b 1)
+          fc /b smoke_x\hello.txt fixtures\hello.expected >nul || (echo ERROR: romfs payload mismatch & exit /b 1)
+
+          rem --- plaintext ExeFS ---------------------------------------------------
+          out\7z.exe l fixtures\exefs.bin > smoke_exefs.txt
+          if errorlevel 1 (echo ERROR: exefs.bin did not open & type smoke_exefs.txt & exit /b 1)
+          findstr /C:"ExeFS (plaintext)" smoke_exefs.txt >nul || (echo ERROR: exefs container not detected & exit /b 1)
+          findstr /C:"banner" smoke_exefs.txt >nul || (echo ERROR: exefs entry not listed & exit /b 1)
+
+          rem --- negative cases: must be rejected, and must not hang or crash ------
+          out\7z.exe l fixtures\bad_romfs.bin >nul 2>&1
+          if not errorlevel 1 (echo ERROR: out-of-range RomFS was accepted & exit /b 1)
+          out\7z.exe l fixtures\garbage.bin >nul 2>&1
+          if not errorlevel 1 (echo ERROR: garbage file was accepted & exit /b 1)
+
+          rem --- stock 7-Zip functionality must still work ------------------------
+          del /q smoke_plain.7z 2>nul
+          out\7z.exe a smoke_plain.7z fixtures\hello.expected fixtures\garbage.bin >nul
+          if errorlevel 1 (echo ERROR: cannot create a 7z archive & exit /b 1)
+          out\7z.exe t smoke_plain.7z >nul
+          if errorlevel 1 (echo ERROR: cannot test a 7z archive & exit /b 1)
+
           echo Smoke test OK
 
       - name: Upload artifacts
