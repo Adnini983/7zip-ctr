@@ -75,11 +75,16 @@ NAND 设备档案」一次性写成 handler 直接能吃的 `keystone\` 结构�
 - AES 密钥（含 console-unique）**全部**写进本机单位对应的目录
   （零售→`ctraes_retail`，开发→`ctraes_dev`）。handler 只按 profile 的单位读这一处，
   所以不存在也不需要单独的 "private" 目录。
-- `seeddb.bin` **不需要你准备**：完整公共库（**1861 条**）已内嵌在 Lua 里，脚本每次都会
-  写出完整文件；如果本机 GodMode9 还能从票据拼出额外的 seed（`fs.key_dump`），会按
-  title id **合并**进去（`1861 built-in + N from this console`）。
-  只靠主机是拼不出完整库的——GodMode9 只能扫描**本机已安装 title 的票据**，所以正常零售机
-  只会得到几十字节、1 条的 SeedInfo；完整库必须来自外部数据。
+- `seeddb.bin` 按这个顺序取，**并校验条目数**：
+  1. `0:/gm9/support/seeddb.bin` —— GodMode9 自己读这个文件，放了就优先用；
+  2. `0:/seeddb.bin`；
+  3. `0:/gm9/out/seeddb.bin`（GodMode9 的 `Build seeddb` 就写这里）；
+  4. 以上都不够 16 条时，脚本调用 `fs.key_dump("seeddb.bin")` 重建（与
+     HOME → More... → **Build seeddb** 同一套代码）。
+
+  日志会打印实际条目数（例如 `seeddb.bin: 1861 entries (from 0:/gm9/support/seeddb.bin)`）。
+  **少于 100 条会明确警告是残缺库**，并提示先用 GodMode9 的 Build seeddb 生成一次；
+  不会再悄悄拿一个 48 字节的残缺文件当结果。
 
 4. 把 `keystone\` 与 `seeddb.bin` 直接拷到 `7z.dll` 同目录（合并）即可，
    **不需要任何电脑端转换**：序列号、dev/retail、Old/New 都由脚本从 GodMode9 读取并写进
