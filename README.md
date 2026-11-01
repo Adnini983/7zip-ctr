@@ -208,6 +208,19 @@ Tools，无需改动即可编译出 `7z.dll` / `7z.exe` / `7zFM.exe` 等）。�
 
 ---
 
+## 隐私与密钥红线
+
+仓库与发布包**不得**含有下列内容（CI 与打包脚本会强制检查）：
+
+| 禁止项 | 说明 |
+|---|---|
+| 主机序列号 | 文档/脚本中一律写 `<序列号>` |
+| 密钥明文 | 文档中写 `<32 位十六进制>`；脚本内嵌密钥必须混淆（XOR + base64） |
+| 每台机器特有的数据 | `boot9.bin`、`otp.mem`、`otp_dec.mem`、`nand_cid.mem`、`movable.sed`、`ctrindex.ini`、`keystone\ctrdevice\`、`keystone.cache` |
+
+- 仓库侧：`scripts\check_no_secrets.ps1`（CI 每次构建前执行，命中即失败）
+- 发布侧：`scripts\check_release_package.ps1 -SevenZip 7z.exe -Package <包>`（打包后审计）
+
 ## 致谢
 
 - **代码与文档生成辅助**：部分代码、文档、图标设计和构建脚本由 AI 工具（豆包 / Doubao、DeepSeek）辅助生成。

@@ -14,6 +14,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Secret scan (serial numbers / plaintext keys / device material)
+        shell: pwsh
+        run: ./scripts/check_no_secrets.ps1
+
       - name: Setup MSVC and build (7z.dll, 7zFM.exe, 7z.exe)
         shell: cmd
         run: |
