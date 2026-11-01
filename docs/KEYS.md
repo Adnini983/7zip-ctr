@@ -85,8 +85,9 @@ seed 加密的 RomFS（`ncchflag` 含 seed）需要一个 seed 数据库才能�
 正确的 keyY。`N3dsHandler` 读取与 `7z.dll` 同目录的 `seeddb.bin`
 （GodMode9 的 SeedInfo 格式，32 字节 / 条）。
 
-- 零售机的 seeddb.bin 可由 GodMode9 构建：Lua 脚本里就是用
-  `fs.key_dump("seeddb.bin")`（`gm9tools\DumpKeysCTR.lua` 会自动做）。
+- 完整 seeddb.bin（1861 条）随发布包分发；`gm9tools\DumpKeysCTR.lua` 也把它内嵌了，
+  所以实机跑一次就能得到完整文件，并会把本机 `fs.key_dump` 能拼出的 seed 合并进去。
+  注意：GodMode9 的 `fs.key_dump` 只能扫描**本机已安装 title 的票据**，单靠它拿不到完整库。
 - 社区整理的（如 `ihaveamac/3DS-rom-tools`）同样可用。
 - 开发机的 seeddb.bin 目前 GodMode9 仍无法自动导出——
   见 [EXTRACT_KEYS.md](EXTRACT_KEYS.md) 的说明。
