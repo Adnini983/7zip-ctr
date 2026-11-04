@@ -6,6 +6,7 @@
 #include "../../../Common/StringConvert.h"
 
 #include "../../../Windows/ErrorMsg.h"
+#include "../../../Windows/FileDir.h"
 
 #include "../FileManager/FormatUtils.h"
 #include "../FileManager/LangUtils.h"
@@ -356,10 +357,32 @@ void ShowHashResults(const CPropNameValPairs &propPairs, HWND hwnd)
 }
 
 
+static bool IsAbsPath(const UString &p)
+{
+  if (p.IsEmpty())
+    return false;
+  if (p[0] == L'\\' || p[0] == L'/')
+    return true;
+  return p.Len() >= 2 && p[1] == L':';
+}
+
+// The checksum file must be looked up next to the hashed file. Callers that only
+// know a relative name (e.g. the plain HashCalc flow) would otherwise resolve it
+// against the wrong directory and report "missing".
+static UString MakeAbsPath(const UString &p)
+{
+  if (IsAbsPath(p))
+    return p;
+  FString full;
+  if (NWindows::NFile::NDir::MyGetFullPathName(us2fs(p), full))
+    return fs2us(full);
+  return p;
+}
+
 static void FillHashEntries(CListViewDialog &lv, const CHashBundle &hb, const UString &filePath)
 {
   lv.HashActions = false;
-  lv.HashFilePath = filePath;
+  lv.HashFilePath = MakeAbsPath(filePath);
   lv.HashEntries.Clear();
   if (hb.NumFiles != 1 || filePath.IsEmpty())
     return;
