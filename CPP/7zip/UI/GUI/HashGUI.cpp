@@ -31,6 +31,11 @@ class CHashCallbackGUI Z7_final: public CProgressThreadVirt, public IHashCallbac
 
   CPropNameValPairs PropNameValPairs;
 
+  // GodMode9 style .sha/.sha1 support: only for a single real file
+  bool _hashActions;
+  UString _hashPath;
+  CObjectVector<CListHashEntry> _hashEntries;
+
   HRESULT ProcessVirt() Z7_override;
   virtual void ProcessWasFinished_GuiVirt() Z7_override;
 
@@ -258,6 +263,30 @@ HRESULT CHashCallbackGUI::AfterLastFile(CHashBundle &hb)
   hb.FirstFileName = FirstFileName;
   // MainPath
   AddHashBundleRes(PropNameValPairs, hb);
+
+  // collect raw digests so the results dialog can write / compare
+  // <file>.sha (SHA-256) and <file>.sha1 (SHA-1) in GodMode9 format
+  _hashActions = false;
+  _hashPath.Empty();
+  _hashEntries.Clear();
+  if (hb.NumFiles == 1 && hb.NumDirs == 0 && !hb.FirstFileName.IsEmpty())
+  {
+    _hashPath = hb.FirstFileName;
+    bool any = false;
+    FOR_VECTOR (i, hb.Hashers)
+    {
+      const CHasherState &h = hb.Hashers[i];
+      if (h.DigestSize != 20 && h.DigestSize != 32)
+        continue;
+      CListHashEntry e;
+      e.Name = UString(h.Name);
+      e.Size = h.DigestSize;
+      memcpy(e.Digest, h.Digests[k_HashCalc_Index_DataSum], h.DigestSize);
+      _hashEntries.Add(e);
+      any = true;
+    }
+    _hashActions = any;
+  }
   
   CProgressSync &sync = Sync;
   sync.Set_NumFilesCur(hb.NumFiles);
@@ -327,15 +356,70 @@ void ShowHashResults(const CPropNameValPairs &propPairs, HWND hwnd)
 }
 
 
+static void FillHashEntries(CListViewDialog &lv, const CHashBundle &hb, const UString &filePath)
+{
+  lv.HashActions = false;
+  lv.HashFilePath = filePath;
+  lv.HashEntries.Clear();
+  if (hb.NumFiles != 1 || filePath.IsEmpty())
+    return;
+  FOR_VECTOR (i, hb.Hashers)
+  {
+    const CHasherState &h = hb.Hashers[i];
+    if (h.DigestSize != 20 && h.DigestSize != 32)
+      continue;
+    CListHashEntry e;
+    e.Name = UString(h.Name);
+    e.Size = h.DigestSize;
+    memcpy(e.Digest, h.Digests[k_HashCalc_Index_DataSum], h.DigestSize);
+    lv.HashEntries.Add(e);
+    lv.HashActions = true;
+  }
+}
+
 void ShowHashResults(const CHashBundle &hb, HWND hwnd)
+{
+  ShowHashResults(hb, hwnd, hb.FirstFileName);
+}
+
+void ShowHashResults(const CHashBundle &hb, HWND hwnd, const UString &filePath)
 {
   CPropNameValPairs propPairs;
   AddHashBundleRes(propPairs, hb);
-  ShowHashResults(propPairs, hwnd);
+
+  CListViewDialog lv;
+  FOR_VECTOR (i, propPairs)
+  {
+    const CProperty &pair = propPairs[i];
+    lv.Strings.Add(pair.Name);
+    lv.Values.Add(pair.Value);
+  }
+  lv.Title = LangString(IDS_CHECKSUM_INFORMATION);
+  lv.DeleteIsAllowed = true;
+  lv.SelectFirst = false;
+  lv.NumColumns = 2;
+  FillHashEntries(lv, hb, filePath);
+  lv.Create(hwnd);
 }
 
 void CHashCallbackGUI::ProcessWasFinished_GuiVirt()
 {
-  if (Result != E_ABORT)
-    ShowHashResults(PropNameValPairs, *this);
+  if (Result == E_ABORT)
+    return;
+
+  CListViewDialog lv;
+  FOR_VECTOR (i, PropNameValPairs)
+  {
+    const CProperty &pair = PropNameValPairs[i];
+    lv.Strings.Add(pair.Name);
+    lv.Values.Add(pair.Value);
+  }
+  lv.Title = LangString(IDS_CHECKSUM_INFORMATION);
+  lv.DeleteIsAllowed = true;
+  lv.SelectFirst = false;
+  lv.NumColumns = 2;
+  lv.HashActions = _hashActions;
+  lv.HashFilePath = _hashPath;
+  lv.HashEntries = _hashEntries;
+  lv.Create(*this);
 }

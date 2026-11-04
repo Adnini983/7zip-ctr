@@ -7,6 +7,15 @@
 #include "../../../Windows/Control/ListView.h"
 
 #include "ListViewDialogRes.h"
+#include "../../../Common/MyVector.h"
+#include "../../../Common/MyString.h"
+
+struct CListHashEntry
+{
+  UString Name;              // "SHA-256" / "SHA-1"
+  Byte Digest[64];
+  unsigned Size;             // 20 or 32
+};
 
 class CListViewDialog: public NWindows::NControl::CModalDialog
 {
@@ -19,6 +28,9 @@ class CListViewDialog: public NWindows::NControl::CModalDialog
   void DeleteItems();
   void ShowItemInfo();
   void OnEnter();
+  void WriteHashFile();
+  void CompareHashFile();
+  virtual bool OnButtonClicked(unsigned buttonID, HWND buttonHWND) Z7_override;
 public:
   UString Title;
   
@@ -32,6 +44,12 @@ public:
   int FocusedItemIndex;
   unsigned NumColumns;
 
+  // when set, two extra buttons appear that write / compare GodMode9 style
+  // <file>.sha (32 raw bytes) and <file>.sha1 (20 raw bytes) checksum files
+  bool HashActions;
+  UString HashFilePath;
+  CObjectVector<CListHashEntry> HashEntries;
+
   INT_PTR Create(HWND wndParent = NULL) { return CModalDialog::Create(IDD_LISTVIEW, wndParent); }
 
   CListViewDialog():
@@ -39,7 +57,8 @@ public:
     DeleteIsAllowed(false),
     StringsWereChanged(false),
     FocusedItemIndex(-1),
-    NumColumns(1)
+    NumColumns(1),
+    HashActions(false)
     {}
 };
 

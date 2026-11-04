@@ -8,6 +8,9 @@
 #include "ListViewDialog.h"
 #include "RegistryUtils.h"
 
+#include "../../../Windows/FileName.h"
+#include "../../../Windows/FileIO.h"
+
 #ifdef Z7_LANG
 #include "LangUtils.h"
 #endif
@@ -126,6 +129,19 @@ bool CListViewDialog::OnInit()
     _listView.SetColumnWidthAuto(1);
   StringsWereChanged = false;
 
+  if (!HashActions)
+  {
+    ShowItem(IDB_LISTVIEW_WRITE, false);
+    ShowItem(IDB_LISTVIEW_COMPARE, false);
+  }
+  else
+  {
+    #ifdef Z7_LANG
+    LangSetDlgItemText(*this, IDB_LISTVIEW_WRITE, IDT_LISTVIEW_WRITE);
+    LangSetDlgItemText(*this, IDB_LISTVIEW_COMPARE, IDT_LISTVIEW_COMPARE);
+    #endif
+  }
+
   NormalizeSize();
   return CModalDialog::OnInit();
 }
@@ -150,6 +166,15 @@ bool CListViewDialog::OnSize(WPARAM /* wParam */, int xSize, int ySize)
 
   MoveItem(IDCANCEL, x, y, bx1, by);
   MoveItem(IDOK, x - mx - bx2, y, bx2, by);
+
+  if (HashActions)
+  {
+    int wx, wy, w2, h2;
+    GetItemSizes(IDB_LISTVIEW_WRITE, wx, wy);
+    GetItemSizes(IDB_LISTVIEW_COMPARE, w2, h2);
+    MoveItem(IDB_LISTVIEW_WRITE, mx, y, wx, by);
+    MoveItem(IDB_LISTVIEW_COMPARE, mx + wx + mx, y, w2, by);
+  }
   /*
   if (wParam == SIZE_MAXSHOW || wParam == SIZE_MAXIMIZED || wParam == SIZE_MAXHIDE)
     mx = 0;
@@ -312,6 +337,142 @@ bool CListViewDialog::OnNotify(UINT /* controlID */, LPNMHDR header)
     }
   }
   return false;
+}
+
+static bool WriteRawFile(const UString &path, const Byte *data, unsigned size)
+{
+  HANDLE h = ::CreateFileW(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+      FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD written = 0;
+  const BOOL ok = ::WriteFile(h, data, size, &written, NULL);
+  ::CloseHandle(h);
+  return ok && written == size;
+}
+
+static bool ReadRawFile(const UString &path, Byte *data, unsigned size, unsigned &got)
+{
+  got = 0;
+  HANDLE h = ::CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+      FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+  DWORD n = 0;
+  const BOOL ok = ::ReadFile(h, data, size, &n, NULL);
+  ::CloseHandle(h);
+  got = n;
+  return ok && n == size;
+}
+
+static bool FileExistsOnDisk(const UString &path)
+{
+  const DWORD attr = ::GetFileAttributesW(path);
+  return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+
+static UString HashMsg(UInt32 langID, const wchar_t *fallback)
+{
+  #ifdef Z7_LANG
+  {
+    const UString s = LangString(langID);
+    if (!s.IsEmpty())
+      return s;
+  }
+  #endif
+  return UString(fallback);
+}
+
+void CListViewDialog::WriteHashFile()
+{
+  if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
+    return;
+
+  UString report;
+  FOR_VECTOR (i, HashEntries)
+  {
+    const CListHashEntry &e = HashEntries[i];
+    if (e.Size != 20 && e.Size != 32)
+      continue;
+    UString path = HashFilePath;
+    path += (e.Size == 20) ? L".sha1" : L".sha";
+
+    if (FileExistsOnDisk(path))
+    {
+      UString q = HashMsg(IDT_LISTVIEW_OVERWRITE, L"Overwrite?");
+      q.Add_LF();
+      q += path;
+      if (::MessageBoxW(*this, q, L"7-Zip", MB_YESNO | MB_ICONQUESTION) != IDYES)
+        continue;
+    }
+
+    if (WriteRawFile(path, e.Digest, e.Size))
+    {
+      report += HashMsg(IDT_LISTVIEW_WRITTEN, L"Written: ");
+      report += path;
+    }
+    else
+    {
+      report += HashMsg(IDT_LISTVIEW_FAILED, L"Failed: ");
+      report += path;
+    }
+    report.Add_LF();
+  }
+
+  if (!report.IsEmpty())
+    ::MessageBoxW(*this, report, L"7-Zip", MB_OK | MB_ICONINFORMATION);
+}
+
+void CListViewDialog::CompareHashFile()
+{
+  if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
+    return;
+
+  UString report;
+  FOR_VECTOR (i, HashEntries)
+  {
+    const CListHashEntry &e = HashEntries[i];
+    if (e.Size != 20 && e.Size != 32)
+      continue;
+    UString path = HashFilePath;
+    path += (e.Size == 20) ? L".sha1" : L".sha";
+
+    Byte buf[64];
+    unsigned got = 0;
+    if (!ReadRawFile(path, buf, e.Size, got) || got != e.Size)
+    {
+      report += HashMsg(IDT_LISTVIEW_MISSING, L"Missing / unreadable: ");
+      report += path;
+    }
+    else if (memcmp(buf, e.Digest, e.Size) == 0)
+    {
+      report += HashMsg(IDT_LISTVIEW_MATCH, L"OK: ");
+      report += path;
+    }
+    else
+    {
+      report += HashMsg(IDT_LISTVIEW_MISMATCH, L"MISMATCH: ");
+      report += path;
+    }
+    report.Add_LF();
+  }
+
+  if (!report.IsEmpty())
+    ::MessageBoxW(*this, report, L"7-Zip", MB_OK | MB_ICONINFORMATION);
+}
+
+bool CListViewDialog::OnButtonClicked(unsigned buttonID, HWND buttonHWND)
+{
+  switch (buttonID)
+  {
+    case IDB_LISTVIEW_WRITE:
+      WriteHashFile();
+      return true;
+    case IDB_LISTVIEW_COMPARE:
+      CompareHashFile();
+      return true;
+  }
+  return CModalDialog::OnButtonClicked(buttonID, buttonHWND);
 }
 
 void CListViewDialog::OnOK()

@@ -10,5 +10,7 @@ CAPTION "ListView"
   CONTROL  "List1", IDL_LISTVIEW, "SysListView32", LVS_REPORT | LVS_SHOWSELALWAYS |
             LVS_AUTOARRANGE | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,
             m, m, xc, yc - bys - m
+  PUSHBUTTON  "Write .sha", IDB_LISTVIEW_WRITE, m, yc - bys - m, 84, bys
+  PUSHBUTTON  "Compare .sha", IDB_LISTVIEW_COMPARE, m + 88, yc - bys - m, 84, bys
   OK_CANCEL
 }

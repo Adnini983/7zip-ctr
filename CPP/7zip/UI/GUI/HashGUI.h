@@ -23,5 +23,6 @@ void AddHashBundleRes(UString &s, const CHashBundle &hb);
 
 void ShowHashResults(const CPropNameValPairs &propPairs, HWND hwnd);
 void ShowHashResults(const CHashBundle &hb, HWND hwnd);
+void ShowHashResults(const CHashBundle &hb, HWND hwnd, const UString &filePath);
 
 #endif

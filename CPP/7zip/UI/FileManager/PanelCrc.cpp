@@ -141,6 +141,7 @@ class CThreadCrc: public CProgressThreadVirt
 {
   bool ResultsWereShown;
   bool WasFinished;
+  UString FirstFullPath;   // absolute path of the first hashed file
 
   HRESULT ProcessVirt() Z7_override;
   virtual void ProcessWasFinished_GuiVirt() Z7_override;
@@ -165,7 +166,7 @@ void CThreadCrc::ShowFinalResults(HWND hwnd)
   if (!ResultsWereShown)
   {
     ResultsWereShown = true;
-    ShowHashResults(Hash, hwnd);
+    ShowHashResults(Hash, hwnd, FirstFullPath);
   }
 }
 
@@ -290,6 +291,7 @@ HRESULT CThreadCrc::ProcessVirt()
       if (isFirstFile)
       {
         Hash.FirstFileName = fs2us(path);
+        FirstFullPath = fs2us(tempPath);
         isFirstFile = false;
       }
       sync.Set_FilePath(fs2us(path));
