@@ -143,6 +143,15 @@ bool CListViewDialog::OnInit()
   }
 
   NormalizeSize();
+
+  if (HashActions)
+  {
+    // the dialog is not resized on open, so lay the buttons out explicitly
+    RECT rc;
+    GetClientRect(&rc);
+    OnSize(0, rc.right, rc.bottom);
+  }
+
   return CModalDialog::OnInit();
 }
 
@@ -169,11 +178,14 @@ bool CListViewDialog::OnSize(WPARAM /* wParam */, int xSize, int ySize)
 
   if (HashActions)
   {
+    // right-aligned, immediately left of OK:  [write] [compare] [OK] [cancel]
     int wx, wy, w2, h2;
     GetItemSizes(IDB_LISTVIEW_WRITE, wx, wy);
     GetItemSizes(IDB_LISTVIEW_COMPARE, w2, h2);
-    MoveItem(IDB_LISTVIEW_WRITE, mx, y, wx, by);
-    MoveItem(IDB_LISTVIEW_COMPARE, mx + wx + mx, y, w2, by);
+    const int okX = x - mx - bx2;
+    const int cx = okX - mx - w2;
+    MoveItem(IDB_LISTVIEW_COMPARE, cx, y, w2, by);
+    MoveItem(IDB_LISTVIEW_WRITE, cx - mx - wx, y, wx, by);
   }
   /*
   if (wParam == SIZE_MAXSHOW || wParam == SIZE_MAXIMIZED || wParam == SIZE_MAXHIDE)
