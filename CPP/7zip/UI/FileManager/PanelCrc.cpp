@@ -17,6 +17,43 @@
 
 #include "resource.h"
 
+// The panel may have been entered through a relative prefix, so never trust the
+// textual name: ask the open handle for the real path (Win7+), else resolve it.
+static UString GetRealPathOfOpenFile(const NWindows::NFile::NIO::CInFile &file, const FString &fallback)
+{
+  typedef DWORD (WINAPI *FUNC_GetFinalPathNameByHandleW)(HANDLE, LPWSTR, DWORD, DWORD);
+  const HMODULE hmod = ::GetModuleHandleW(L"kernel32.dll");
+  if (hmod)
+  {
+    #pragma warning(push)
+    #pragma warning(disable: 4191)   // GetProcAddress result -> typed function pointer
+    const FUNC_GetFinalPathNameByHandleW fn = (FUNC_GetFinalPathNameByHandleW)
+        ::GetProcAddress(hmod, "GetFinalPathNameByHandleW");
+    #pragma warning(pop)
+    if (fn && file.GetHandle() != INVALID_HANDLE_VALUE)
+    {
+      wchar_t full[MAX_PATH * 4];
+      const DWORD n = fn(file.GetHandle(), full,
+          (DWORD)(sizeof(full) / sizeof(full[0])), 0 /* FILE_NAME_NORMALIZED | VOLUME_NAME_DOS */);
+      if (n > 0 && n < sizeof(full) / sizeof(full[0]))
+      {
+        const wchar_t *p = full;
+        if (n > 4 && full[0] == L'\\' && full[1] == L'\\' && full[2] == L'?' && full[3] == L'\\')
+          p = full + 4;
+        return UString(p);
+      }
+    }
+  }
+
+  {
+    UString full;
+    if (NWindows::NFile::NDir::MyGetFullPathName(fs2us(fallback), full))
+      return full;
+  }
+  return fs2us(fallback);
+}
+
+
 using namespace NWindows;
 using namespace NFile;
 
@@ -291,7 +328,9 @@ HRESULT CThreadCrc::ProcessVirt()
       if (isFirstFile)
       {
         Hash.FirstFileName = fs2us(path);
-        FirstFullPath = fs2us(tempPath);
+        // Resolve the real path from the opened handle when available (works even
+        // if the panel prefix is relative); fall back to GetFullPathName().
+        FirstFullPath = GetRealPathOfOpenFile(inFile, tempPath);
         isFirstFile = false;
       }
       sync.Set_FilePath(fs2us(path));
