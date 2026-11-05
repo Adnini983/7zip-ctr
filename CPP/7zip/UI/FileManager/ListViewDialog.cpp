@@ -383,6 +383,10 @@ static bool FileExistsOnDisk(const UString &path)
   return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0;
 }
 
+// Build tag: shown in every write/compare message so the running binary can be
+// identified from a screenshot alone (the project has had stale-exe confusion).
+#define Z7_CRC_BUILD_TAG L"63729e2"
+
 static UString HashMsg(UInt32 langID, const wchar_t *fallback)
 {
   #ifdef Z7_LANG
@@ -453,8 +457,18 @@ void CListViewDialog::CompareHashFile()
     unsigned got = 0;
     if (!ReadRawFile(path, buf, e.Size, got) || got != e.Size)
     {
+      report += L"[b" Z7_CRC_BUILD_TAG L"] ";
       report += HashMsg(IDT_LISTVIEW_MISSING, L"Missing / unreadable: ");
       report += path;
+      report += (FileExistsOnDisk(path) ? L" (exists=1 got=" : L" (exists=0 got=");
+      UString n;
+      n.Add_UInt64(got);
+      report += n;
+      report += L" want=";
+      n.Empty();
+      n.Add_UInt64(e.Size);
+      report += n;
+      report += L")";
     }
     else if (memcmp(buf, e.Digest, e.Size) == 0)
     {
