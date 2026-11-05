@@ -463,6 +463,37 @@ static void WriteLine(CDynLimBuf &hashFileString,
 }
 
 
+
+// Absolute path of the file that was just opened: the hash command can be started
+// from a shell context menu with a relative name and a foreign working directory,
+// so the textual name is not reliable.
+static UString Z7HashRealPath(HANDLE h, const FString &fallback)
+{
+  typedef DWORD (WINAPI *FUNC_GetFinalPathNameByHandleW)(HANDLE, LPWSTR, DWORD, DWORD);
+  const HMODULE hmod = ::GetModuleHandleW(L"kernel32.dll");
+  if (hmod && h != INVALID_HANDLE_VALUE)
+  {
+    #pragma warning(push)
+    #pragma warning(disable: 4191)
+    const FUNC_GetFinalPathNameByHandleW fn = (FUNC_GetFinalPathNameByHandleW)
+        ::GetProcAddress(hmod, "GetFinalPathNameByHandleW");
+    #pragma warning(pop)
+    if (fn)
+    {
+      wchar_t full[MAX_PATH * 4];
+      const DWORD n = fn(h, full, (DWORD)(sizeof(full) / sizeof(full[0])), 0);
+      if (n > 0 && n < sizeof(full) / sizeof(full[0]))
+      {
+        const wchar_t *p = full;
+        if (n > 4 && full[0] == L'\\' && full[1] == L'\\' && full[2] == L'?' && full[3] == L'\\')
+          p = full + 4;
+        return UString(p);
+      }
+    }
+  }
+  return fs2us(fallback);
+}
+
 HRESULT HashCalc(
     DECL_EXTERNAL_CODECS_LOC_VARS
     const NWildcard::CCensor &censor,
@@ -594,6 +625,8 @@ HRESULT HashCalc(
               return res;
             continue;
           }
+          if (hb.FirstFileNameFull.IsEmpty())
+            hb.FirstFileNameFull = Z7HashRealPath(inStreamSpec->Get_File_Handle(), phyPath);
           if (!options.StdInMode)
           {
             UInt64 curSize = 0;

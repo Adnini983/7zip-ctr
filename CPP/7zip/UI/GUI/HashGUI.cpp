@@ -33,6 +33,24 @@ static void Z7CrcLog(const char *what, const wchar_t *detail)
   if (h == INVALID_HANDLE_VALUE)
     return;
   DWORD w = 0;
+  {
+    wchar_t self[MAX_PATH];
+    DWORD sn = ::GetModuleFileNameW(NULL, self, MAX_PATH);
+    if (sn > 0 && sn < MAX_PATH)
+    {
+      const wchar_t *base = self;
+      for (DWORD i = 0; i < sn; i++)
+        if (self[i] == L'\\' || self[i] == L'/')
+          base = self + i + 1;
+      char nb[512];
+      const int cn = ::WideCharToMultiByte(CP_UTF8, 0, base, -1, nb, (int)sizeof(nb) - 1, NULL, NULL);
+      if (cn > 1)
+      {
+        ::WriteFile(h, nb, (DWORD)(cn - 1), &w, NULL);
+        ::WriteFile(h, " ", 1, &w, NULL);
+      }
+    }
+  }
   ::WriteFile(h, what, (DWORD)::lstrlenA(what), &w, NULL);
   ::WriteFile(h, " | ", 3, &w, NULL);
   if (detail)
@@ -297,7 +315,7 @@ HRESULT CHashCallbackGUI::AfterLastFile(CHashBundle &hb)
   // collect raw digests so the results dialog can write / compare
   // <file>.sha (SHA-256) and <file>.sha1 (SHA-1) in GodMode9 format
   _hashActions = false;
-  _hashPath.Empty();
+  _hashPath = hb.FirstFileNameFull.IsEmpty() ? hb.FirstFileName : hb.FirstFileNameFull;
   _hashEntries.Clear();
   if (hb.NumFiles == 1 && hb.NumDirs == 0 && !hb.FirstFileName.IsEmpty())
   {

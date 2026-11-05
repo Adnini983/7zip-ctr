@@ -93,6 +93,7 @@ struct CHashBundle Z7_final: public IHashCalc
 
   UString MainName;
   UString FirstFileName;
+  UString FirstFileNameFull;   // absolute path of the first hashed file (may be empty)
 
   HRESULT SetMethods(DECL_EXTERNAL_CODECS_LOC_VARS const UStringVector &methods);
   

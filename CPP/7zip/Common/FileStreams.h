@@ -102,6 +102,7 @@ public:
   IInFileStream_Callback *Callback;
   UINT_PTR CallbackRef;
   FString FullPath;   // full path passed to Open(), exposed via kpidZ7CtrSourcePath
+    HANDLE Get_File_Handle() const { return File.GetHandle(); }
 
   CInFileStream();
   ~CInFileStream();
