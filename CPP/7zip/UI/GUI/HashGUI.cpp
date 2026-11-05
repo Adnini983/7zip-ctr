@@ -316,6 +316,9 @@ HRESULT CHashCallbackGUI::AfterLastFile(CHashBundle &hb)
   // <file>.sha (SHA-256) and <file>.sha1 (SHA-1) in GodMode9 format
   _hashActions = false;
   _hashPath = hb.FirstFileNameFull.IsEmpty() ? hb.FirstFileName : hb.FirstFileNameFull;
+  { UString d = L"FirstFileName="; d += hb.FirstFileName;
+    d += L" Full="; d += hb.FirstFileNameFull;
+    Z7CrcLog("AfterLastFile", d); }
   _hashEntries.Clear();
   if (hb.NumFiles == 1 && hb.NumDirs == 0 && !hb.FirstFileName.IsEmpty())
   {

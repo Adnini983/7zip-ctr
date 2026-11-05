@@ -277,7 +277,9 @@ void CalcChecksum(const UStringVector &paths,
     censor.AddPreItem_NoWildcard(paths[i]);
   }
 
-  censor.AddPathsToCensor(NWildcard::k_RelatPath);
+  // Keep the full paths: with k_RelatPath the hash dialog only saw the bare file
+  // name, so write/compare resolved it against the process working directory.
+  censor.AddPathsToCensor(NWildcard::k_FullPath);
   bool messageWasDisplayed = false;
 
   CHashOptions options;
