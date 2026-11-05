@@ -424,6 +424,7 @@ void CListViewDialog::WriteHashFile()
 
     if (WriteRawFile(path, e.Digest, e.Size))
     {
+      report += L"[b" Z7_CRC_BUILD_TAG L"] ";
       report += HashMsg(IDT_LISTVIEW_WRITTEN, L"Written: ");
       report += path;
     }

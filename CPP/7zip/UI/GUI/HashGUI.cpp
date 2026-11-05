@@ -442,7 +442,7 @@ void CHashCallbackGUI::ProcessWasFinished_GuiVirt()
   lv.SelectFirst = false;
   lv.NumColumns = 2;
   lv.HashActions = _hashActions;
-  lv.HashFilePath = _hashPath;
+  lv.HashFilePath = MakeAbsPath(_hashPath);
   lv.HashEntries = _hashEntries;
   lv.Create(*this);
 }
