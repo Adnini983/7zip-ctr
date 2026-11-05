@@ -468,33 +468,6 @@ static void WriteLine(CDynLimBuf &hashFileString,
 // from a shell context menu with a relative name and a foreign working directory,
 // so the textual name is not reliable.
 
-static void Z7HashLog(const char *what, const wchar_t *detail)
-{
-  wchar_t dir[MAX_PATH];
-  DWORD n = ::GetTempPathW(MAX_PATH, dir);
-  if (n == 0 || n >= MAX_PATH)
-    return;
-  UString path(dir);
-  path += L"z7crc.log";
-  HANDLE h = ::CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (h == INVALID_HANDLE_VALUE)
-    return;
-  DWORD w = 0;
-  ::WriteFile(h, "HashCalc ", 9, &w, NULL);
-  ::WriteFile(h, what, (DWORD)::lstrlenA(what), &w, NULL);
-  ::WriteFile(h, " | ", 3, &w, NULL);
-  if (detail)
-  {
-    char buf[2048];
-    const int n2 = ::WideCharToMultiByte(CP_UTF8, 0, detail, -1, buf, (int)sizeof(buf) - 1, NULL, NULL);
-    if (n2 > 1)
-      ::WriteFile(h, buf, (DWORD)(n2 - 1), &w, NULL);
-  }
-  ::WriteFile(h, "\r\n", 2, &w, NULL);
-  ::CloseHandle(h);
-}
-
 static UString Z7HashRealPath(HANDLE h, const FString &fallback)
 {
   typedef DWORD (WINAPI *FUNC_GetFinalPathNameByHandleW)(HANDLE, LPWSTR, DWORD, DWORD);
@@ -654,12 +627,7 @@ HRESULT HashCalc(
             continue;
           }
           if (hb.FirstFileNameFull.IsEmpty())
-          {
             hb.FirstFileNameFull = Z7HashRealPath(inStreamSpec->Get_File_Handle(), phyPath);
-            UString d = L"phy="; d += fs2us(phyPath);
-            d += L" full="; d += hb.FirstFileNameFull;
-            Z7HashLog("set-full", d);
-          }
           if (!options.StdInMode)
           {
             UInt64 curSize = 0;

@@ -17,51 +17,7 @@
 
 #include "resource.h"
 
-// ---- temporary CRC diagnostics (ASCII only) -------------------------------
-static void Z7CrcLog(const char *what, const wchar_t *detail)
-{
-  wchar_t dir[MAX_PATH];
-  DWORD n = ::GetTempPathW(MAX_PATH, dir);
-  if (n == 0 || n >= MAX_PATH)
-    return;
-  UString path(dir);
-  path += L"z7crc.log";
-  HANDLE h = ::CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (h == INVALID_HANDLE_VALUE)
-    return;
-  DWORD w = 0;
-  {
-    wchar_t self[MAX_PATH];
-    DWORD sn = ::GetModuleFileNameW(NULL, self, MAX_PATH);
-    if (sn > 0 && sn < MAX_PATH)
-    {
-      const wchar_t *base = self;
-      for (DWORD i = 0; i < sn; i++)
-        if (self[i] == L'\\' || self[i] == L'/')
-          base = self + i + 1;
-      char nb[512];
-      const int cn = ::WideCharToMultiByte(CP_UTF8, 0, base, -1, nb, (int)sizeof(nb) - 1, NULL, NULL);
-      if (cn > 1)
-      {
-        ::WriteFile(h, nb, (DWORD)(cn - 1), &w, NULL);
-        ::WriteFile(h, " ", 1, &w, NULL);
-      }
-    }
-  }
-  ::WriteFile(h, what, (DWORD)::lstrlenA(what), &w, NULL);
-  ::WriteFile(h, " | ", 3, &w, NULL);
-  if (detail)
-  {
-    char buf[2048];
-    const int n2 = ::WideCharToMultiByte(CP_UTF8, 0, detail, -1, buf, (int)sizeof(buf) - 1, NULL, NULL);
-    if (n2 > 1)
-      ::WriteFile(h, buf, (DWORD)(n2 - 1), &w, NULL);
-  }
-  ::WriteFile(h, "\r\n", 2, &w, NULL);
-  ::CloseHandle(h);
-}
-// ---------------------------------------------------------------------------
+
 
 
 // The panel may have been entered through a relative prefix, so never trust the
@@ -250,7 +206,6 @@ void CThreadCrc::ShowFinalResults(HWND hwnd)
   if (!ResultsWereShown)
   {
     ResultsWereShown = true;
-    Z7CrcLog("ShowFinalResults", FirstFullPath);
     ShowHashResults(Hash, hwnd, FirstFullPath);
   }
 }
@@ -383,7 +338,6 @@ HRESULT CThreadCrc::ProcessVirt()
           UString d = L"path="; d += fs2us(path);
           d += L" temp="; d += fs2us(tempPath);
           d += L" first="; d += FirstFullPath;
-          Z7CrcLog("PanelCrc first-file", d);
         }
         isFirstFile = false;
       }

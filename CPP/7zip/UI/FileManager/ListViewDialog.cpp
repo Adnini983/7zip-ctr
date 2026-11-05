@@ -14,51 +14,7 @@
 #ifdef Z7_LANG
 #include "LangUtils.h"
 
-// ---- temporary CRC diagnostics (ASCII only) -------------------------------
-static void Z7CrcLog(const char *what, const wchar_t *detail)
-{
-  wchar_t dir[MAX_PATH];
-  DWORD n = ::GetTempPathW(MAX_PATH, dir);
-  if (n == 0 || n >= MAX_PATH)
-    return;
-  UString path(dir);
-  path += L"z7crc.log";
-  HANDLE h = ::CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (h == INVALID_HANDLE_VALUE)
-    return;
-  DWORD w = 0;
-  {
-    wchar_t self[MAX_PATH];
-    DWORD sn = ::GetModuleFileNameW(NULL, self, MAX_PATH);
-    if (sn > 0 && sn < MAX_PATH)
-    {
-      const wchar_t *base = self;
-      for (DWORD i = 0; i < sn; i++)
-        if (self[i] == L'\\' || self[i] == L'/')
-          base = self + i + 1;
-      char nb[512];
-      const int cn = ::WideCharToMultiByte(CP_UTF8, 0, base, -1, nb, (int)sizeof(nb) - 1, NULL, NULL);
-      if (cn > 1)
-      {
-        ::WriteFile(h, nb, (DWORD)(cn - 1), &w, NULL);
-        ::WriteFile(h, " ", 1, &w, NULL);
-      }
-    }
-  }
-  ::WriteFile(h, what, (DWORD)::lstrlenA(what), &w, NULL);
-  ::WriteFile(h, " | ", 3, &w, NULL);
-  if (detail)
-  {
-    char buf[2048];
-    const int n2 = ::WideCharToMultiByte(CP_UTF8, 0, detail, -1, buf, (int)sizeof(buf) - 1, NULL, NULL);
-    if (n2 > 1)
-      ::WriteFile(h, buf, (DWORD)(n2 - 1), &w, NULL);
-  }
-  ::WriteFile(h, "\r\n", 2, &w, NULL);
-  ::CloseHandle(h);
-}
-// ---------------------------------------------------------------------------
+
 
 #endif
 
@@ -430,10 +386,6 @@ static bool FileExistsOnDisk(const UString &path)
   return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY) == 0;
 }
 
-// Build tag: shown in every write/compare message so the running binary can be
-// identified from a screenshot alone (the project has had stale-exe confusion).
-#define Z7_CRC_BUILD_TAG L"63729e2"
-
 static UString HashMsg(UInt32 langID, const wchar_t *fallback)
 {
   #ifdef Z7_LANG
@@ -446,11 +398,30 @@ static UString HashMsg(UInt32 langID, const wchar_t *fallback)
   return UString(fallback);
 }
 
+
+// The checksum file must live next to the hashed file. A relative name here means
+// the path plumbing is broken; writing it would silently land in the process
+// working directory (that bug shipped once), so refuse instead.
+static bool IsAbsoluteChecksumPath(const UString &p)
+{
+  if (p.IsEmpty())
+    return false;
+  if (p[0] == L'\\' || p[0] == L'/')
+    return true;
+  return p.Len() >= 2 && p[1] == L':';
+}
+
 void CListViewDialog::WriteHashFile()
 {
-  Z7CrcLog("WriteHashFile", HashFilePath);
   if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
     return;
+  if (!IsAbsoluteChecksumPath(HashFilePath))
+  {
+    UString m = L"Internal error: checksum path is not absolute: ";
+    m += HashFilePath;
+    ::MessageBoxW(*this, m, L"7-Zip", MB_OK | MB_ICONERROR);
+    return;
+  }
 
   UString report;
   FOR_VECTOR (i, HashEntries)
@@ -472,7 +443,6 @@ void CListViewDialog::WriteHashFile()
 
     if (WriteRawFile(path, e.Digest, e.Size))
     {
-      report += L"[b" Z7_CRC_BUILD_TAG L"] ";
       report += HashMsg(IDT_LISTVIEW_WRITTEN, L"Written: ");
       report += path;
     }
@@ -490,9 +460,15 @@ void CListViewDialog::WriteHashFile()
 
 void CListViewDialog::CompareHashFile()
 {
-  Z7CrcLog("CompareHashFile", HashFilePath);
   if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
     return;
+  if (!IsAbsoluteChecksumPath(HashFilePath))
+  {
+    UString m = L"Internal error: checksum path is not absolute: ";
+    m += HashFilePath;
+    ::MessageBoxW(*this, m, L"7-Zip", MB_OK | MB_ICONERROR);
+    return;
+  }
 
   UString report;
   FOR_VECTOR (i, HashEntries)
@@ -507,7 +483,6 @@ void CListViewDialog::CompareHashFile()
     unsigned got = 0;
     if (!ReadRawFile(path, buf, e.Size, got) || got != e.Size)
     {
-      report += L"[b" Z7_CRC_BUILD_TAG L"] ";
       report += HashMsg(IDT_LISTVIEW_MISSING, L"Missing / unreadable: ");
       report += path;
       report += (FileExistsOnDisk(path) ? L" (exists=1 got=" : L" (exists=0 got=");
