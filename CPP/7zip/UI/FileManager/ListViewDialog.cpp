@@ -13,6 +13,35 @@
 
 #ifdef Z7_LANG
 #include "LangUtils.h"
+
+// ---- temporary CRC diagnostics (ASCII only) -------------------------------
+static void Z7CrcLog(const char *what, const wchar_t *detail)
+{
+  wchar_t dir[MAX_PATH];
+  DWORD n = ::GetTempPathW(MAX_PATH, dir);
+  if (n == 0 || n >= MAX_PATH)
+    return;
+  UString path(dir);
+  path += L"z7crc.log";
+  HANDLE h = ::CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+      NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return;
+  DWORD w = 0;
+  ::WriteFile(h, what, (DWORD)::lstrlenA(what), &w, NULL);
+  ::WriteFile(h, " | ", 3, &w, NULL);
+  if (detail)
+  {
+    char buf[2048];
+    const int n2 = ::WideCharToMultiByte(CP_UTF8, 0, detail, -1, buf, (int)sizeof(buf) - 1, NULL, NULL);
+    if (n2 > 1)
+      ::WriteFile(h, buf, (DWORD)(n2 - 1), &w, NULL);
+  }
+  ::WriteFile(h, "\r\n", 2, &w, NULL);
+  ::CloseHandle(h);
+}
+// ---------------------------------------------------------------------------
+
 #endif
 
 using namespace NWindows;
@@ -401,6 +430,7 @@ static UString HashMsg(UInt32 langID, const wchar_t *fallback)
 
 void CListViewDialog::WriteHashFile()
 {
+  Z7CrcLog("WriteHashFile", HashFilePath);
   if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
     return;
 
@@ -442,6 +472,7 @@ void CListViewDialog::WriteHashFile()
 
 void CListViewDialog::CompareHashFile()
 {
+  Z7CrcLog("CompareHashFile", HashFilePath);
   if (HashFilePath.IsEmpty() || HashEntries.IsEmpty())
     return;
 
