@@ -322,7 +322,6 @@ HRESULT CHashCallbackGUI::AfterLastFile(CHashBundle &hb)
   _hashEntries.Clear();
   if (hb.NumFiles == 1 && hb.NumDirs == 0 && !hb.FirstFileName.IsEmpty())
   {
-    _hashPath = hb.FirstFileName;
     bool any = false;
     FOR_VECTOR (i, hb.Hashers)
     {
